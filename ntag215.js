@@ -26,7 +26,12 @@ THE SOFTWARE.
 */
 
 function NFCTag(data) {
-  this.setData(data);
+  if (data instanceof TagData) {
+    this.setData(data.buffer);
+    this.tagData = data;
+  } else {
+    this.setData(data);
+  }
   this.authenticated = false;
   this.backdoor = false;
   this.tagWritten = false;
@@ -53,6 +58,9 @@ function NFCTag(data) {
     this.lockedPages = self._getLockedPages();
 
     if (self.tagWritten == true) {
+      if (this.tagData) {
+        tagData.save();
+      }
       //console.log("Saving tag to flash");
       //require("Storage").write(filename, this._data);
       self.tagWritten = false;
@@ -173,7 +181,7 @@ NFCTag.prototype = {
     0xa2: function write(rx, self) {
       if (!this.backdoor && (rx[1] < 0 || rx[1] > 134 || self.lockedPages.indexOf(rx[1]) != -1)) {
         NRF.nfcSend(0x00);
-
+        console.log('write blocked');
         return;
       }
 
@@ -229,7 +237,6 @@ NFCTag.prototype = {
       if (rx[1] == 133 && rx[2] == 134) {
         NRF.nfcSend(self._responses.puckSuccess);
         this.backdoor = true;
-
         return;
       }
 
@@ -268,9 +275,32 @@ NFCTag.prototype = {
   getData: () => this._data
 };
 
+
+function TagData(led, filename) {
+  this.led = led;
+  this.filename = filename;
+  const storage = require("Storage");
+  const buffer = storage.readArrayBuffer(filename);
+
+  if (buffer) {
+    const output = new Uint8Array(buffer.length);
+    for (var buffPos = 0; buffPos < buffer.length; buffPos++) {
+      output[buffPos] = buffer[buffPos];
+    }
+
+    this.buffer = output;
+  } else {
+    this.buffer = new Uint8Array(572);
+  }
+}
+
+TagData.prototype.save = function() {
+  const storage = require("Storage");
+  storage.write(this.filename, this.buffer);
+};
+
 var tags = (function() {
-  var storage = require("Storage");
-  var data = [
+  const leds = [
     { led: [LED1] },
     { led: [LED1, LED2] },
     { led: [LED2] },
@@ -278,21 +308,11 @@ var tags = (function() {
     { led: [LED3] }
   ];
 
-  for (var i = 0; i < data.length; i++) {
-    data[i].filename = "tag" + i + ".bin";
+  const data = [];
 
-    var buffer = storage.readArrayBuffer(data[i].filename);
-
-    if (buffer) {
-      var output = new Uint8Array(buffer.length);
-      for (var buffPos = 0; buffPos < buffer.length; buffPos++) {
-        output[buffPos] = buffer[buffPos];
-      }
-
-      data[i].buffer = output;
-    } else {
-      data[i].buffer = new Uint8Array(572);
-    }
+  for (var i = 0; i < leds.length; i++) {
+    const filename = "tag" + i + ".bin";
+    data[i] = new TagData(leds[i].led, filename);
   }
 
   return data;
@@ -306,6 +326,9 @@ tag.filename = tags[currentTag].filename;
 
 setWatch(function() {
   NRF.nfcStop();
+
+  tags[currentTag].save();
+
   currentTag++;
 
   if (currentTag > tags.length - 1) {
