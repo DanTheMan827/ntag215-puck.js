@@ -59,7 +59,7 @@ function NFCTag(data) {
 
     if (self.tagWritten == true) {
       if (this.tagData) {
-        tagData.save();
+        this.tagData.save();
       }
       //console.log("Saving tag to flash");
       //require("Storage").write(filename, this._data);
@@ -321,7 +321,7 @@ var tags = (function() {
 
 var currentTag = 0;
 
-var tag = new NFCTag(tags[currentTag].buffer);
+var tag = new NFCTag(tags[currentTag]);
 tag.filename = tags[currentTag].filename;
 
 setWatch(function() {
