@@ -1,69 +1,5 @@
 'use strict';
 
-class NFCLogger {
-  static attach(NRF) {
-    var _this = this;
-
-    NFCLogger.tracking = false;
-    NFCLogger.monitorInterval = null;
-    NFCLogger.dispatcherRunning = false;
-    NFCLogger.count = 0;
-    NFCLogger.lastCount = 0;
-    NFCLogger.log = [];
-    NFCLogger.oldNfcSend = NRF.nfcSend;
-
-    NRF.nfcSend = function (data) {
-      NFCLogger.oldNfcSend.call(NRF, data);
-
-      _this.log.push({
-        type: 'tx',
-        data: data
-      });
-    };
-
-    NRF.on('NFCrx', function (rx) {
-      _this.count++;
-
-      _this.log.push({
-        type: 'rx',
-        data: rx
-      });
-    });
-  }
-
-  static stop() {
-    this.tracking = false;
-    clearInterval(this.monitorInterval);
-    this.monitorInterval = null;
-  }
-
-  static start(timeout) {
-    if (this.monitorInterval) {
-      return;
-    }
-
-    this.tracking = true;
-    this.monitorInterval = setInterval(this._monitor, timeout || 5000);
-  }
-
-  static _monitor() {
-    console.log('checking nf log');
-
-    if (this.dispatcherRunning === true || this.tracking === false || this.count === this.lastCount) {
-      return;
-    }
-
-    this.dispatcherRunning = true;
-    this.log.forEach(function (log) {
-      console.log(log.type, log.data);
-    });
-    this.log = [];
-    this.lastCount = this.count;
-    this.dispatcherRunning = false;
-  }
-
-}
-
 class Debugger {
   static debug(fn) {
     if (this.enabled) {
@@ -101,19 +37,14 @@ var staticResponses = {
 };
 
 function NFCTag(data) {
+  this.led = [];
+  this.filename = null;
   this.authenticated = false;
   this.backdoor = false;
   this.tagWritten = false;
-  this.lockedPages = [];
-
-  if (data instanceof TagData) {
-    this.led = data.led;
-    this.filename = data.filename;
-    this.setData(data.buffer);
-    this.tagData = data;
-  } else {
-    this.setData(data);
-  }
+  this.pwdLockout = false;
+  this.lockedPages = {};
+  this._responses = {};
 }
 
 NFCTag.prototype = {
@@ -135,11 +66,10 @@ NFCTag.prototype = {
 
     this.authenticated = false;
     this.backdoor = false;
-    this.lockedPages = this._getLockedPages();
 
     if (this.tagWritten === true) {
-      if (this.tagData) {
-        this.tagData.save();
+      if (this.fileData) {
+        this.fileData.save();
       } //console.log("Saving tag to flash");
       //require("Storage").write(filename, this._data);
 
@@ -155,12 +85,34 @@ NFCTag.prototype = {
     }
   },
   _initCard: function () {
+    var _this = this;
+
     var pwStart = 0x85 * 4;
-    this._info.password = new Uint8Array(this._data, pwStart, 4);
+    this._info.password = new Uint8Array(this._data, pwStart - 1, 5);
+    this._info.password[0] = 0x1b;
     var packStart = 0x86 * 4;
     this._responses.pack = new Uint8Array(this._data, packStart, 2);
 
+    if (this._data.length > 540) {
+      this._responses.signature = new Uint8Array(this._data, 540, 32);
+    }
+
+    if (this._data.length > 572) {
+      this._responses.version = new Uint8Array(this._data, 572, 8);
+    } else {
+      this._responses.version = new Uint8Array([0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x11, 0x03]);
+    }
+
+    Debugger.debug(function () {
+      console.log('password', _this._info.password);
+      console.log('pack', _this._responses.pack);
+      console.log('signature', _this._responses.signature);
+      console.log('version', _this._responses.version);
+    });
+
     this._fixUid();
+
+    this.lockedPages = this._getLockedPages();
   },
   _fixUid: function () {
     var _this2 = this;
@@ -248,7 +200,11 @@ NFCTag.prototype = {
       }
     }
 
-    return locked;
+    var pages = {};
+    locked.forEach(function (page) {
+      pages[page] = true;
+    });
+    return pages;
   },
   _readPage: function (page) {
     if (this.backdoor === false && (page < 0 || page > 134)) {
@@ -257,28 +213,29 @@ NFCTag.prototype = {
 
     if (!this.backdoor && (page === 133 || page === 134)) {
       return new Uint8Array(4);
-    } //send response
+    } // reads on the MFU cards send back 16 bytes...
+    // this also fixes the signature validation issue I was seeing.
+    // I suspect the data beyond page 134 is 'undefined' and we don't have to worry about it.
+    // In practice, it looks like the data returned when you ask for page 134 is:
+    // [4 bytes page 134] + [first 12 bytes of tag]
+    //send response
 
 
-    return new Uint8Array(this._data.buffer, page * 4, 16);
+    return new Uint8Array(this._data, page * 4, 16);
   },
-  _responses: {
-    version: new Uint8Array([0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x11, 0x03]),
-    pwdSuccess: new Uint8Array([0x80, 0x80]),
-    pwdFail: new Uint8Array([0x04]),
-    ack: new Uint8Array([0x0A]),
-    puckSuccess: new Uint8Array([0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08]),
-    puckDeauth: new Uint8Array([0x08, 0x07, 0x06, 0x05, 0x04, 0x03, 0x02, 0x01])
+  _info: {
+    password: [0x1b, 0x00, 0x00, 0x00, 0x00]
   },
-  _info: {},
   _callbacks: {
     0x30: function read(rx, self) {
       NRF.nfcSend(self._readPage(rx[1]));
     },
     0xa2: function write(rx, self) {
-      if (!this.backdoor && (rx[1] < 0 || rx[1] > 134 || self.lockedPages.indexOf(rx[1]) !== -1)) {
+      if (!this.backdoor && (rx[1] > 134 || self.lockedPages[rx[1]])) {
         NRF.nfcSend(0x00);
-        console.log('write blocked');
+        Debugger.debug(function () {
+          console.log('write blocked');
+        });
         return;
       }
 
@@ -312,7 +269,7 @@ NFCTag.prototype = {
 
         self._data.set(view, idx);
 
-        NRF.nfcSend(0x0A);
+        NRF.nfcSend(staticResponses.ack);
       }
 
       self.tagWritten = true;
@@ -321,24 +278,30 @@ NFCTag.prototype = {
       NRF.nfcSend(self._responses.version);
     },
     0x3a: function fastRead(rx, self) {
-      if (rx[1] > rx[2] || rx[1] < 0 || rx[2] > 134) {
-        NRF.nfcSend(0x00);
-        console.log("Invalid fast read command");
+      // no need for a < 0 check, these are unsigned ints...
+      if (rx[1] > rx[2] || rx[2] > 134) {
+        NRF.nfcSend(staticResponses.nak.argument);
+        Debugger.debug(function () {
+          console.log("Invalid fast read command");
+        });
         return;
       }
 
       if (rx[1] === 133 && rx[2] === 134) {
         if (!self.backdoor) {
-          NRF.nfcSend(self._responses.puckSuccess);
+          NRF.nfcSend(staticResponses.backdoorOpened);
           self.backdoor = true;
         } else {
           if (self.tagData) {
-            NRF.nfcSend(self._responses.puckDeauth);
+            NRF.nfcSend(staticResponses.backdoorClosed);
             self.backdoor = false;
             setTimeout(function () {
               self.tagData.save();
+              self.stop();
 
               self._initCard();
+
+              self.start();
             }, 0);
           }
         }
@@ -346,21 +309,23 @@ NFCTag.prototype = {
         return;
       }
 
-      NRF.nfcSend(new Uint8Array(self._data.buffer, rx[1] * 4, (rx[2] - rx[1] + 1) * 4));
+      NRF.nfcSend(new Uint8Array(self._data, rx[1] * 4, (rx[2] - rx[1] + 1) * 4));
     },
     0x1b: function pwdAuth(rx, self) {
-      for (var i = 0; i < 4; i++) {
-        if (self._info.password[i] !== rx[i + 1]) {
-          NRF.nfcSend(self._responses.pwdFail);
-          return;
-        }
+      if (self._info.password !== rx) {
+        NRF.nfcSend(self.pwdLockout ? staticResponses.nak.auth : staticResponses.nak.argument);
+        console.log("Auth fail.");
+        console.log(rx);
+        console.log(self._info.password);
+        return;
       }
 
       NRF.nfcSend(self._responses.pack);
       self.authenticated = true;
+      console.log('Authenticated.');
     },
     0x3c: function readSig(rx, self) {
-      NRF.nfcSend(new Uint8Array(self._data.buffer, 540, 32));
+      NRF.nfcSend(self._responses.signature);
     },
     0x88: function restartNfc(rx, self) {
       self.setData(self._data);
@@ -374,9 +339,22 @@ NFCTag.prototype = {
   },
   setData: function (data) {
     //shutdown
-    this.stop(); //store data
+    this.stop();
 
-    this._data = data || new Uint8Array(572); // init card and fix bcc0 and bcc1 if needed
+    if (data instanceof TagDataFile) {
+      this.led = data.led;
+      this.filename = data.filename;
+      this._data = data.buffer.buffer;
+      this.tagData = data;
+    } else if (data instanceof TagData) {
+      this.tagData = data;
+      this._data = data.buffer.buffer;
+    } else if (data instanceof Uint8Array) {
+      this._data = data.buffer;
+    } else {
+      this._data = data;
+    } // init card and fix bcc0 and bcc1 if needed
+
 
     this._initCard(); //re-start
 
@@ -388,25 +366,35 @@ NFCTag.prototype = {
   }
 };
 
-function TagData(led, filename) {
-  this.led = led;
-  this.filename = filename;
-  var buffer = Storage.readArrayBuffer(filename);
-
-  if (buffer) {
-    var output = new Uint8Array(buffer.length);
-
-    for (var buffPos = 0; buffPos < buffer.length; buffPos++) {
-      output[buffPos] = buffer[buffPos];
-    }
-
-    this.buffer = output;
-  } else {
-    this.buffer = new Uint8Array(572);
+class TagData {
+  constructor(buffer) {
+    this.buffer = buffer || new Uint8Array(580);
   }
+
 }
 
-TagData.prototype.save = function () {// Storage.write(this.filename, this.buffer);
+class TagDataFile extends TagData {
+  constructor(led, filename) {
+    super();
+    this.led = led;
+    this.filename = filename;
+    var fileBuff = Storage.readArrayBuffer(filename);
+
+    if (fileBuff) {
+      var minLen = fileBuff.length > this.buffer.length ? this.buffer.length : fileBuff.length;
+
+      for (var buffPos = 0; buffPos < minLen; buffPos++) {
+        this.buffer[buffPos] = fileBuff[buffPos];
+      }
+    }
+  }
+
+}
+
+TagData.prototype.save = function () {// no op
+};
+
+TagDataFile.prototype.save = function () {// Storage.write(this.filename, this.buffer);
 };
 
 var tags = function () {
@@ -425,7 +413,7 @@ var tags = function () {
 
   for (var i = 0; i < leds.length; i++) {
     var filename = "tag" + i + ".bin";
-    data[i] = new TagData(leds[i].led, filename);
+    data[i] = new TagDataFile(leds[i].led, filename);
   }
 
   return data;
@@ -433,7 +421,6 @@ var tags = function () {
 
 var currentTag = 0;
 var tag = new NFCTag(tags[currentTag]);
-tag.filename = tags[currentTag].filename;
 NRF.on('NFCon', function () {
   tag.activate();
 });
@@ -442,10 +429,10 @@ NRF.on('NFCoff', function () {
 });
 NRF.on('NFCrx', function (rx) {
   tag.receive(rx);
-});
-NFCLogger.attach(NRF);
+}); // NFCLogger.attach(NRF);
+
 setWatch(function () {
-  NRF.nfcStop(); // tags[currentTag].save();
+  tag.stop(); // tags[currentTag].save();
 
   currentTag++;
 
@@ -462,14 +449,11 @@ setWatch(function () {
     digitalWrite(tag.led[i], 1);
   }
 
+  tag = new NFCTag(tags[currentTag]);
   setTimeout(function () {
     for (var _i = 0; _i < tag.led.length; _i++) {
       digitalWrite(tag.led[_i], 0);
     }
-
-    tag.led = tags[currentTag].led;
-    tag.filename = tags[currentTag].filename;
-    tag.setData(tags[currentTag].buffer);
   }, 200);
 }, BTN, {
   repeat: true,
