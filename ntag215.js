@@ -36,13 +36,13 @@ function NFCTag(data) {
 
   var self = this;
 
-  NRF.on('NFCon', () => {
+  NRF.on('NFCon', function() {
     for (var i = 0; i<self.led.length; i++) {
       digitalWrite(self.led[i], 1);
     }
   });
 
-  NRF.on('NFCoff', () => {
+  NRF.on('NFCoff', function() {
     for (var i = 0; i<self.led.length; i++) {
       digitalWrite(self.led[i], 0);
     }
@@ -64,7 +64,7 @@ function NFCTag(data) {
     }
   });
 
-  NRF.on('NFCrx', (rx) => {
+  NRF.on('NFCrx', function(rx) {
     if (rx && self._callbacks[rx[0]]) {
       self._callbacks[rx[0]](rx, self);
     } else {
@@ -74,7 +74,7 @@ function NFCTag(data) {
 }
 
 NFCTag.prototype = {
-  _fixUid: () => {
+  _fixUid: function() {
     var bcc0 = this._data[0] ^ this._data[1] ^ this._data[2] ^ 0x88;
     var bcc1 = this._data[4] ^ this._data[5] ^ this._data[6] ^ this._data[7];
 
@@ -89,7 +89,7 @@ NFCTag.prototype = {
 
     return false;
   },
-  _getLockedPages: () => {
+  _getLockedPages: function() {
     var locked = [0, 1];
 
     // Static Lock Bytes
@@ -149,7 +149,7 @@ NFCTag.prototype = {
 
     return locked;
   },
-  _readPage: (page) => {
+  _readPage: function(page) {
     if (this.backdoor == false && (page < 0 || page > 134)) {
       return 0x00;
     }
@@ -252,7 +252,7 @@ NFCTag.prototype = {
       NRF.nfcSend();
     },
   },
-  setData: (data) => {
+  setData: function(data) {
     //shutdown
     NRF.nfcStop();
 
@@ -265,7 +265,9 @@ NFCTag.prototype = {
     //re-start
     var header = NRF.nfcStart(new Uint8Array([data[0], data[1], data[2], data[4], data[5], data[6], data[7]]));
   },
-  getData: () => this._data
+  getData: function() {
+    return this._data;
+  }
 };
 
 var tags = (function() {
