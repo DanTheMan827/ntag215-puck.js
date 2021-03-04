@@ -274,10 +274,12 @@ var tags = (function() {
   var storage = require("Storage");
   var data = [
     { led: [LED1] },
-    { led: [LED1, LED2] },
     { led: [LED2] },
+    { led: [LED1, LED2] },
+    { led: [LED3] },
+    { led: [LED1, LED3] },
     { led: [LED2, LED3] },
-    { led: [LED3] }
+    { led: [LED1, LED2, LED3] },
   ];
 
   for (var i = 0; i < data.length; i++) {
@@ -294,6 +296,8 @@ var tags = (function() {
       data[i].buffer = output;
     } else {
       data[i].buffer = new Uint8Array(572);
+      data[i].buffer.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
+      data[i].buffer.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
     }
   }
 
