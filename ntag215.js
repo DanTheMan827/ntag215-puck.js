@@ -32,21 +32,22 @@ function NFCTag(data) {
   this.tagWritten = false;
   this.lockedPages = [];
   this.filename = "tag.bin";
-  this.led = [LED1];
   this.callbacks = this._callbacks;
 
   var self = this;
 
   NRF.on('NFCon', function nfcOn() {
-    for (var i = 0; i<self.led.length; i++) {
-      digitalWrite(self.led[i], 1);
+    if (currentTag < 7) {
+      LED1.write(currentTag + 1 & 1);
+      LED2.write(currentTag + 1 & 2);
+      LED3.write(currentTag + 1 & 4);
     }
   });
 
   NRF.on('NFCoff', function nfcOff() {
-    for (var i = 0; i<self.led.length; i++) {
-      digitalWrite(self.led[i], 0);
-    }
+    LED1.write(0);
+    LED2.write(0);
+    LED3.write(0);
 
     self.authenticated = false;
     self.backdoor = false;
@@ -296,22 +297,16 @@ NFCTag.prototype._unrestrictedCallbacks = {
 
 var storage = require("Storage");
 var tags = (function() {
-  var data = [
-    { led: [LED1] },
-    { led: [LED2] },
-    { led: [LED1, LED2] },
-    { led: [LED3] },
-    { led: [LED1, LED3] },
-    { led: [LED2, LED3] },
-    { led: [LED1, LED2, LED3] },
-  ];
+  var data = [];
 
-  for (var i = 0; i < data.length; i++) {
-    data[i].filename = "tag" + i + ".bin";
+  for (var i = 0; i < 14; i++) {
+    var filename = "tag" + i + ".bin";
+    data.push({});
 
-    var buffer = storage.readArrayBuffer(data[i].filename);
+    var buffer = storage.readArrayBuffer(filename);
 
     if (buffer) {
+      console.log("Loaded " + filename);
       var output = new Uint8Array(buffer.length);
       for (var buffPos = 0; buffPos < buffer.length; buffPos++) {
         output[buffPos] = buffer[buffPos];
@@ -350,12 +345,12 @@ LED3.write(1);
 function getTagInfo(slot){
   var output = Uint8Array(80);
   output.set(tags[slot].buffer.slice(0, 8), 0);
-  
+
   output.set(tags[slot].buffer.slice(16, 24), 8);
   output.set(tags[slot].buffer.slice(32, 52), 20);
   output.set(tags[slot].buffer.slice(84, 92), 40);
   output.set(tags[slot].buffer.slice(96, 128), 48);
-  
+
   return output;
 }
 
@@ -371,35 +366,30 @@ setTimeout(function() {
   LED3.write(0);
   clearWatch();
   tag = new NFCTag(tags[currentTag].buffer);
-  tag.filename = tags[currentTag].filename;
+  tag.filename = "tag" + currentTag + ".bin";
 
   changeTag = function changeTag(slot){
     NRF.nfcStop();
     currentTag = slot;
 
-    tag.led = tags[slot].led;
-
-    LED1.write(0);
-    LED2.write(0);
-    LED3.write(0);
-
-    for (var i = 0; i<tag.led.length; i++) {
-      digitalWrite(tag.led[i], 1);
+    if (currentTag < 7) {
+      LED1.write(currentTag + 1 & 1);
+      LED2.write(currentTag + 1 & 2);
+      LED3.write(currentTag + 1 & 4);
     }
 
     setTimeout(function() {
-      for (var i = 0; i<tag.led.length; i++) {
-        digitalWrite(tag.led[i], 0);
-      }
+      LED1.write(0);
+      LED2.write(0);
+      LED3.write(0);
 
-      tag.led = tags[slot].led;
-      tag.filename = tags[slot].filename;
+      tag.filename = "tag" + currentTag + ".bin";
       tag.setData(tags[slot].buffer);
     }, 200);
   };
 
   setWatch(function() {
-    changeTag(++currentTag >= tags.length ? 0 : currentTag);
+    changeTag(++currentTag >= 7 ? 0 : currentTag);
   }, BTN, { repeat: true, edge: "rising", debounce: 50 });
 
   /**
@@ -419,24 +409,25 @@ setTimeout(function() {
     [540, 32]  // Signature
   ];
   */
-  
+
   NRF.setAdvertising({}, { name: getBufferClone(storage.readArrayBuffer("puck-name")) });
   if (!enableUart) {
     const serviceId = "78290001-d52e-473f-a9f4-f03da7c67dd1";
     const commandCharacteristic = "78290002-d52e-473f-a9f4-f03da7c67dd1";
     const returnCharacteristic = "78290003-d52e-473f-a9f4-f03da7c67dd1";
     const nameCharacteristic = "78290004-d52e-473f-a9f4-f03da7c67dd1";
-    const slotCharacteristic = "78290005-d52e-473f-a9f4-f03da7c67dd1";
 
     var services = { };
     services[serviceId] = {};
+
     services[serviceId][returnCharacteristic] = {
       maxLen: 260,
       value: [],
       readable: true,
       writable: false,
       indicate: false
-    },
+    };
+
     services[serviceId][commandCharacteristic] = {
       maxLen: 20,
       value: [],
@@ -457,8 +448,8 @@ setTimeout(function() {
           };
           switch (evt.data[0]) {
             case 0x01: (function() {//Slot Information <Slot>
-              //Returns 0x01 <Current Slot> <Slot Count>
               if (evt.data.length > 1) {
+                //Returns a subset of data for identifying
                 var slot = evt.data[1] < tags.length ? evt.data[1] : currentTag;
                 var data = getTagInfo(slot);
                 response[serviceId][returnCharacteristic].value = Uint8Array(data.length + 2);
@@ -467,6 +458,7 @@ setTimeout(function() {
                 response[serviceId][returnCharacteristic].value[1] = slot;
                 response[serviceId][returnCharacteristic].value.set(data, 2);
               } else {
+                //Returns 0x01 <Current Slot> <Slot Count>
                 response[serviceId][returnCharacteristic].value = [0x01, currentTag, tags.length];
               }
               NRF.updateServices(response);
@@ -503,6 +495,15 @@ setTimeout(function() {
               }
             })(); break;
 
+            case 0xFD: (function() {//Move slot <From> <To>
+              var oldSlot = evt.data[1];
+              var newSlot = evt.data[2];
+              if (oldSlot < tags.length && newSlot < tags.length) {
+                tags.splice(newSlot, 0, tags.splice(oldSlot, 1)[0]);
+                changeTag(currentTag);
+              }
+            })(); break;
+
             case 0xFE: (function() {//Enable BLE UART
               NRF.setServices({ }, { uart : true });
             })(); break;
@@ -518,7 +519,7 @@ setTimeout(function() {
         }
       }
     };
-    
+
     services[serviceId][nameCharacteristic] = {
       maxLen: 20,
       value: getBufferClone(storage.readArrayBuffer("puck-name")),
