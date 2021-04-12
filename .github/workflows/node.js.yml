@@ -23,7 +23,7 @@ jobs:
         mkdir -p /tmp/builder
         cp -R puck-ntag215-manager/* /tmp/builder/
         git log
-        git checkout -b gh-pages --track origin/gh-pages
+        git checkout -b gh-pages --track gh-pages
         mkdir dist
         cd /tmp/builder
         npm install
