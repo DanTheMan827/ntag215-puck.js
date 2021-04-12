@@ -21,7 +21,7 @@ jobs:
     - run: git fetch --all
     - run: |
         REPOPATH="`pwd`"
-        mkdir -p /tmp/builder
+        mkdir -p /tmp
         cp -R puck-ntag215-manager /tmp/builder
         git checkout -b gh-pages --track origin/gh-pages
         mkdir dist
