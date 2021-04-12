@@ -28,6 +28,7 @@ jobs:
         cd /tmp/builder
         npm install
         npm run build
+        touch dist/.nojekyll
         rm -r "$REPOPATH/dist"
         cp -R dist "$REPOPATH/dist"
         cd "$REPOPATH"
