@@ -47,7 +47,7 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
   }
 
   &.connected {
-    #puckConnect {
+    #puckConnect, #viewOnGithub {
       display: none;
     }
 
