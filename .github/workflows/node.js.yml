@@ -11,23 +11,18 @@ jobs:
   build:
 
     runs-on: ubuntu-latest
-
-    strategy:
-      matrix:
-        node-version: [10.x, 12.x, 14.x, 15.x]
-        # See supported Node.js release schedule at https://nodejs.org/en/about/releases/
-
+    
     steps:
     - uses: actions/checkout@v2
-    - name: Use Node.js ${{ matrix.node-version }}
+    - name: Use Node.js
       uses: actions/setup-node@v2
       with:
-        node-version: ${{ matrix.node-version }}
+        node-version: 14.x
     - run: |
         REPOPATH="`pwd`"
         mkdir -p /tmp/builder
         cp -R puck-ntag215-manager/* /tmp/builder/
-        git checkout --track origin/gh-pages
+        git checkout gh-pages
         mkdir dist
         cd /tmp/builder
         npm install
@@ -39,5 +34,5 @@ jobs:
         git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
         git add -A dist
         git commit -m "[Automated] Build management page"
-        git push
+        git push gh-pages:gh-pages
         
