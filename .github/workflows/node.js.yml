@@ -5,7 +5,7 @@ name: Node.js Build
 
 on:
   push:
-    branches: [ "*" ]
+    branches: [ "master" ]
 
 jobs:
   build:
