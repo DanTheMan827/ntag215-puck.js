@@ -24,17 +24,17 @@ jobs:
         mkdir -p /tmp
         cp -R puck-ntag215-manager /tmp/builder
         git checkout -b gh-pages --track origin/gh-pages
-        mkdir dist
+        mkdir docs
         cd /tmp/builder
         npm install
         npm run build
         touch dist/.nojekyll
-        rm -r "$REPOPATH/dist"
-        cp -R dist "$REPOPATH/dist"
+        rm -r "$REPOPATH/docs"
+        cp -R dist "$REPOPATH/docs"
         cd "$REPOPATH"
         git config --global user.name 'DanTheMan827 (Automated)'
         git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
-        git add -A dist
+        git add -A docs
         git commit -m "[Automated] Build management page"
         git push -u origin gh-pages
         
