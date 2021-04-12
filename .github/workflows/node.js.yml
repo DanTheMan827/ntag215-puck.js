@@ -28,13 +28,13 @@ jobs:
         cd /tmp/builder
         npm install
         npm run build
-        touch dist/.nojekyll
-        rm -r "$REPOPATH/docs"
-        cp -R dist "$REPOPATH/docs"
+        rm -r $REPOPATH/*
+        cp -R dist/* "$REPOPATH"
+        touch "$REPOPATH/.nojekyll"
         cd "$REPOPATH"
         git config --global user.name 'DanTheMan827 (Automated)'
         git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
-        git add -A docs
+        git add -A .
         git commit -m "[Automated] Build management page"
         git push -u origin gh-pages
         
