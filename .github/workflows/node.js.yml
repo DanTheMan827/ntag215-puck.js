@@ -18,22 +18,22 @@ jobs:
       uses: actions/setup-node@v2
       with:
         node-version: 14.x
-    - run: git fetch --all
+    - run: |
+        git fetch --all
+        git config --global user.name 'DanTheMan827 (Automated)'
+        git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
     - run: |
         REPOPATH="`pwd`"
         mkdir -p /tmp
         cp -R puck-ntag215-manager /tmp/builder
         git checkout -b gh-pages --track origin/gh-pages
-        mkdir docs
+        rm -r *
         cd /tmp/builder
         npm install
         npm run build
-        rm -r $REPOPATH/*
         cp -R dist/* "$REPOPATH"
-        touch "$REPOPATH/.nojekyll"
         cd "$REPOPATH"
-        git config --global user.name 'DanTheMan827 (Automated)'
-        git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
+        touch ".nojekyll"
         git add -A .
         git commit -m "[Automated] Build management page"
         git push -u origin gh-pages
