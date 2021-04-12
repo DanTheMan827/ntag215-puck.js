@@ -35,5 +35,5 @@ jobs:
         git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
         git add -A dist
         git commit -m "[Automated] Build management page"
-        git push gh-pages:gh-pages
+        git push -u origin gh-pages
         
