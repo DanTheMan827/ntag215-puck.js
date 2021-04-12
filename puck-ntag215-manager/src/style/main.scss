@@ -1,0 +1,58 @@
+$icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
+@import "_variables.scss";
+@import "~bootstrap-sass/assets/stylesheets/_bootstrap.scss";
+@import "_bootswatch.scss";
+
+#mainContainer {
+  max-width: 1170px;
+  width: 100% !important;
+  padding: 15px;
+
+  #puckDisconnect, #puckUart, #puckName {
+    display: none;
+  }
+
+  #slotsContainer {
+    display: none;
+
+    .slot-title {
+      display: inline-block;
+      font-size: 2em;
+      font-weight: bold;
+
+      &:before {
+        content: 'Slot ';
+      }
+    }
+
+    .slot-links {
+      font-weight: bold;
+      list-style: none;
+      padding: 0;
+
+      li {
+        display: inline-block;
+
+        &:before {
+          content: '|';
+          padding:0 .5em
+        }
+
+        &:first-child:before {
+          content: '';
+          padding: 0;
+        }
+      }
+    }
+  }
+
+  &.connected {
+    #puckConnect {
+      display: none;
+    }
+
+    #puckDisconnect, #puckUart, #puckName, #slotsContainer {
+      display: block;
+    }
+  }
+}
