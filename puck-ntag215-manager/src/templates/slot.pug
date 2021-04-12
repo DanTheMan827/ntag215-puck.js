@@ -1,0 +1,12 @@
+.well.well-sm.slot
+  .slot-title=slot + 1
+  .slot-summary
+    if uid
+      div
+        b="UID: "
+        span=uid
+    ul.slot-links
+      li: a.slot-download-link(href='#') Download
+      li: a.slot-upload-link(href='#') Upload
+      li: a.slot-clear-link(href="#") Clear
+      li: a.slot-select-link(href="#") Select
