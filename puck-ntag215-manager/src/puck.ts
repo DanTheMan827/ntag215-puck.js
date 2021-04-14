@@ -1,10 +1,7 @@
-import { read } from "fs";
-
-const serviceId = "78290001-d52e-473f-a9f4-f03da7c67dd1"
-const commandCharacteristicId = "78290002-d52e-473f-a9f4-f03da7c67dd1"
-const returnCharacteristicId = "78290003-d52e-473f-a9f4-f03da7c67dd1"
-const nameCharacteristicId = "78290004-d52e-473f-a9f4-f03da7c67dd1"
-const log = console.log
+export const serviceId = "78290001-d52e-473f-a9f4-f03da7c67dd1"
+export const commandCharacteristicId = "78290002-d52e-473f-a9f4-f03da7c67dd1"
+export const returnCharacteristicId = "78290003-d52e-473f-a9f4-f03da7c67dd1"
+export const nameCharacteristicId = "78290004-d52e-473f-a9f4-f03da7c67dd1"
 
 export class Puck {
   private device: BluetoothDevice
@@ -15,6 +12,18 @@ export class Puck {
   private nameCharacteristic: BluetoothRemoteGATTCharacteristic
   private totalSlots: number
 
+  private static dummyFunc: (...data: any[]) => void = () => undefined
+
+  public log: (...data: any[]) => void
+  public error: (...data: any[]) => void
+  public warn: (...data: any[]) => void
+
+  constructor(log?: (...data: any[]) => void, warn?: (...data: any[]) => void, error?: (...data: any[]) => void) {
+    this.log = log ?? Puck.dummyFunc
+    this.warn = warn ?? Puck.dummyFunc
+    this.error = error ?? Puck.dummyFunc
+  }
+
   get isConnected(): boolean {
     return this.server && this.server.connected
   }
@@ -24,37 +33,39 @@ export class Puck {
       await this.disconnect()
     }
 
-    log('Requesting Bluetooth Device...')
+    this.log('Requesting Bluetooth Device...')
     this.device = await navigator.bluetooth.requestDevice({
       filters: [{ services: [serviceId] }]
     })
 
     if (disconnectCallback != null) {
+      this.log('Attached disconnect callback...')
       this.device.addEventListener("gattserverdisconnected", disconnectCallback)
     }
 
-    log('Connecting to GATT Server...')
+    this.log('Connecting to GATT Server...')
     this.server = await this.device.gatt.connect()
 
-    log('Getting Puck Service...')
+    this.log('Getting Puck Service...')
     this.service = await this.server.getPrimaryService(serviceId)
 
-    log('Getting Command Characteristic...')
+    this.log('Getting Command Characteristic...')
     this.commandCharacteristic = await this.service.getCharacteristic(commandCharacteristicId)
 
-    log('Getting Return Characteristic...')
+    this.log('Getting Return Characteristic...')
     this.returnCharacteristic = await this.service.getCharacteristic(returnCharacteristicId)
 
-    log('Getting Name Characteristic...')
+    this.log('Getting Name Characteristic...')
     this.nameCharacteristic = await this.service.getCharacteristic(nameCharacteristicId)
 
-    log('Getting slot information')
+    this.log('Getting slot information')
     const info = await this.getSlotInformation()
     this.totalSlots = info.totalSlots
   }
 
   async disconnect() {
     if (this.isConnected) {
+      this.log('Disconnecting...')
       await this.server.disconnect()
     }
 
@@ -89,6 +100,8 @@ export class Puck {
   private async _read(slot: number, startPage: number, count: number): Promise<Uint8Array> {
     const command = [Puck.Command.Read, slot, startPage, count]
 
+    this.log(`Reading slot ${slot}, page ${startPage} through ${startPage + count}...`)
+
     await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
     while (true) {
       const response = await this.returnCharacteristic.readValue()
@@ -114,6 +127,8 @@ export class Puck {
     }
 
     if (slot >= 0 && slot < this.totalSlots) {
+      this.log(`Reading slot ${slot} summary...`)
+
       const command = [Puck.Command.SlotInformation, slot]
 
       await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
@@ -142,6 +157,8 @@ export class Puck {
     }
 
     if (slot >= 0 && slot < this.totalSlots) {
+      this.log(`Reading slot ${slot}...`)
+
       const data = new Uint8Array(572)
       const maxPages = 63
 
@@ -184,6 +201,8 @@ export class Puck {
         command[2] = i / 4
         command.set(dataSlice, 3)
 
+        this.log(`Writing to slot ${slot}, page ${command[2]} for ${dataSlice.length} bytes...`)
+
         await this.commandCharacteristic.writeValueWithResponse(command)
       }
 
@@ -200,6 +219,7 @@ export class Puck {
 
     const command = [Puck.Command.SlotInformation]
 
+    this.log("Reading slot information...")
     await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
     const response = new Uint8Array((await this.returnCharacteristic.readValue()).buffer)
 
@@ -231,14 +251,20 @@ export class Puck {
     await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
   }
 
-  async enableUart() {
+  async enableUart(disconnect = false) {
     if (!this.isConnected) {
       throw new Error("Puck is not connected")
     }
 
     const command = [Puck.Command.EnableUart]
 
+    this.log("Enabling UART...")
+
     await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+
+    if (disconnect) {
+      await this.disconnect()
+    }
   }
 
   async restartNfc(slot: number = null) {
@@ -249,19 +275,21 @@ export class Puck {
     const command = [Puck.Command.RestartNFC]
 
     if (slot != null) {
+      this.log(`Restarting NFC with slot ${slot}`)
+
       if (slot >= 0 && slot < this.totalSlots) {
         command.push(slot)
       } else {
         throw new Error(`Invalid slot: ${slot}`)
       }
+    } else {
+      this.log("Restarting NFC")
     }
 
     await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
   }
 
-  async changeSlot(slot: number) {
-    return this.restartNfc(slot)
-  }
+  public changeSlot = this.restartNfc
 }
 
 // tslint:disable-next-line: no-namespace

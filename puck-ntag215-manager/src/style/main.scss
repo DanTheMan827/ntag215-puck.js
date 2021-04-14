@@ -2,13 +2,16 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
 @import "_variables.scss";
 @import "~bootstrap-sass/assets/stylesheets/_bootstrap.scss";
 @import "_bootswatch.scss";
+@import "_githubCorner.scss";
 
 #mainContainer {
-  max-width: 1170px;
+  max-width: 1024px;
   width: 100% !important;
   padding: 15px;
 
-  #puckDisconnect, #puckUart, #puckName {
+  #puckDisconnect,
+  #puckUart,
+  #puckName {
     display: none;
   }
 
@@ -21,7 +24,7 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
       font-weight: bold;
 
       &:before {
-        content: 'Slot ';
+        content: "Slot ";
       }
     }
 
@@ -34,12 +37,12 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
         display: inline-block;
 
         &:before {
-          content: '|';
-          padding:0 .5em
+          content: "|";
+          padding: 0 0.5em;
         }
 
         &:first-child:before {
-          content: '';
+          content: "";
           padding: 0;
         }
       }
@@ -47,11 +50,14 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
   }
 
   &.connected {
-    #puckConnect, #viewOnGithub {
+    #puckConnect {
       display: none;
     }
 
-    #puckDisconnect, #puckUart, #puckName, #slotsContainer {
+    #puckDisconnect,
+    #puckUart,
+    #puckName,
+    #slotsContainer {
       display: block;
     }
   }

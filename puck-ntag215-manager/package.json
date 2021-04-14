@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "build": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=production && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist"
+    "build": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=production && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist",
+    "build-dev": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=development && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist"
   },
   "dependencies": {},
   "devDependencies": {

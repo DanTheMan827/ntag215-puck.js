@@ -31,8 +31,8 @@ styleEntries = {
   style: './stylesheets/main.scss'
 }
 
-module.exports = smp.wrap({
-  mode: "production",
+module.exports = (env, argv) => smp.wrap({
+  mode: argv.mode || "development",
   entry: { ...jsEntries },
   devtool: "source-map",
   module: {
@@ -73,7 +73,7 @@ module.exports = smp.wrap({
     ]
   },
   optimization: {
-    minimizer: [
+    minimizer: argv.mode != "production" ? [] : [
       new UglifyJsPlugin({
         cache: false,
         parallel: true,
@@ -110,7 +110,15 @@ module.exports = smp.wrap({
       $: "jquery",
       jQuery: "jquery",
       "window.jQuery": "jquery"
-    })
+    }),
+    new webpack.DefinePlugin((() => {
+      const mode = argv.mode || "development"
+
+      return  {
+        '__DEVELOPMENT__': mode === 'development',
+        '__PRODUCTION__': mode === 'production'
+      }
+    })())
   ],
   resolve: {
     alias: {

@@ -6,178 +6,185 @@ import { saveData, readFile } from "./fileHelpers"
 
 const anyWindow = (window as any)
 const blankTag = new Uint8Array(require('arraybuffer-loader!../NTAG215_blank.bin'))
+const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
 
 $(() => {
-    const puck = new Puck()
-    anyWindow.puck = puck
-    anyWindow.hideModal = hideModal
-    anyWindow.showModal = showModal
-    anyWindow.setModal = setModal
-    anyWindow.saveData = saveData
-    anyWindow.readFile = readFile
+  const mainContainer = $("#mainContainer")
+  const slotsContainer = $("#slotsContainer")
+  const slotTemplate = require("./templates/slot.pug")
 
-    const mainContainer = $("#mainContainer")
-    const slotsContainer = $("#slotsContainer")
-    const slotTemplate = require("./templates/slot.pug")
-
-    async function populateSlots() {
-        slotsContainer.empty()
-
-        if (puck.isConnected) {
-            const info = await puck.getSlotInformation()
-
-            for (let i = 0; i < info.totalSlots; i++) {
-                setModal(null, `Reading Slot ${i + 1}`)
-                const slotInfo = await puck.readSlotSummary(i)
-                slotsContainer.append(getSlotElement(i, slotInfo))
-            }
-        }
+  if (__DEVELOPMENT__) {
+    anyWindow.debug = {
+      ...(anyWindow.debug || {}),
+      ...{
+        puck,
+        showModal,
+        hideModal,
+        setModal,
+        saveData,
+        readFile
+      }
     }
+  }
 
-    function array2hex(data: Uint8Array): string {
-        return Array.prototype.map.call(data, (e: number) => ("00" + e.toString(16)).slice(-2)).join("")
+  async function populateSlots() {
+    slotsContainer.empty()
+
+    if (puck.isConnected) {
+      const info = await puck.getSlotInformation()
+
+      for (let i = 0; i < info.totalSlots; i++) {
+        setModal(null, `Reading Slot ${i + 1}`)
+        const slotInfo = await puck.readSlotSummary(i)
+        slotsContainer.append(getSlotElement(i, slotInfo))
+      }
     }
+  }
 
-    async function updateSlotElement(slot: number, oldElement: JQuery<HTMLElement>) {
-        const info = await puck.readSlotSummary(slot)
-        getSlotElement(slot, info).insertAfter(oldElement)
-        oldElement.remove()
-    }
+  function array2hex(data: Uint8Array): string {
+    return Array.prototype.map.call(data, (e: number) => ("00" + e.toString(16)).slice(-2)).join("")
+  }
 
-    async function writeSlot(slot: number, data: Uint8Array, element: JQuery<HTMLElement>) {
-        await showModal("Please Wait", `Writing slot ${slot + 1}`, true)
-        await puck.writeSlot(slot, data)
-        await updateSlotElement(slot, element)
+  async function updateSlotElement(slot: number, oldElement: JQuery<HTMLElement>) {
+    const info = await puck.readSlotSummary(slot)
+    getSlotElement(slot, info).insertAfter(oldElement)
+    oldElement.remove()
+  }
+
+  async function writeSlot(slot: number, data: Uint8Array, element: JQuery<HTMLElement>) {
+    await showModal("Please Wait", `Writing slot ${slot + 1}`, true)
+    await puck.writeSlot(slot, data)
+    await updateSlotElement(slot, element)
+    await hideModal()
+  }
+
+  function getSlotElement(slot: number, summary: Uint8Array): JQuery<HTMLElement> {
+    const element = $(slotTemplate({
+      slot,
+      uid: array2hex(summary.slice(0, 8))
+    }))
+
+    element.find("a.slot-download-link").on("click", async (e) => {
+      e.preventDefault()
+
+      try {
+        await showModal("Please Wait", `Reading slot ${slot + 1}`, true)
+        const data = await puck.readSlot(slot)
         await hideModal()
-    }
+        saveData(data, `slot${slot}.bin`)
+      } catch (error) {
+        await showModal("Error", error)
+      }
+    })
 
-    function getSlotElement(slot: number, summary: Uint8Array): JQuery<HTMLElement> {
-        const element = $(slotTemplate({
-            slot,
-            uid: array2hex(summary.slice(0, 8))
-        }))
+    element.find("a.slot-upload-link").on("click", async (e) => {
+      e.preventDefault()
 
-        element.find("a.slot-download-link").on("click", async (e) => {
-            e.preventDefault()
-
-            try {
-                await showModal("Please Wait", `Reading slot ${slot + 1}`, true)
-                const data = await puck.readSlot(slot)
-                await hideModal()
-                saveData(data, `slot${slot}.bin`)
-            } catch (error) {
-                await showModal("Error", error)
-            }
-        })
-
-        element.find("a.slot-upload-link").on("click", async (e) => {
-            e.preventDefault()
-
-            readFile(async (file, error) => {
-                try {
-                    if (error != null) {
-                        await showModal("Error", error.message)
-
-                        return
-                    }
-
-                    await writeSlot(slot, file.data, element)
-                } catch (error) {
-                    await showModal("Error", error)
-                }
-            }, 572)
-        })
-
-        element.find("a.slot-clear-link").on("click", async (e) => {
-            e.preventDefault()
-
-            await writeSlot(slot, blankTag, element)
-        })
-
-        element.find("a.slot-select-link").on("click", async (e) => {
-            e.preventDefault()
-
-            try {
-                await showModal("Please Wait", `Changing to slot ${slot + 1}`, true)
-                await puck.changeSlot(slot)
-                await hideModal()
-            } catch (error) {
-                await showModal("Error", error)
-            }
-        })
-
-        return element
-    }
-
-    async function connectPuck(e: Event) {
-        e.preventDefault()
+      readFile(async (file, error) => {
         try {
-            await showModal("Please Wait", "Connecting to puck", true)
-            await puck.connect(async (ev) => {
-                await disconnectPuck(ev)
-            })
+          if (error != null) {
+            await showModal("Error", error.message)
 
-            if (puck.isConnected) {
-                await populateSlots()
+            return
+          }
 
-                mainContainer.addClass("connected")
-            }
-
-            await hideModal()
+          await writeSlot(slot, file.data, element)
         } catch (error) {
-            await showModal("Error", error)
+          await showModal("Error", error)
         }
+      }, 572)
+    })
+
+    element.find("a.slot-clear-link").on("click", async (e) => {
+      e.preventDefault()
+
+      await writeSlot(slot, blankTag, element)
+    })
+
+    element.find("a.slot-select-link").on("click", async (e) => {
+      e.preventDefault()
+
+      try {
+        await showModal("Please Wait", `Changing to slot ${slot + 1}`, true)
+        await puck.changeSlot(slot)
+        await hideModal()
+      } catch (error) {
+        await showModal("Error", error)
+      }
+    })
+
+    return element
+  }
+
+  async function connectPuck(e: Event) {
+    e.preventDefault()
+    try {
+      await showModal("Please Wait", "Connecting to puck", true)
+      await puck.connect(async (ev) => {
+        await disconnectPuck(ev)
+      })
+
+      if (puck.isConnected) {
+        await populateSlots()
+
+        mainContainer.addClass("connected")
+      }
+
+      await hideModal()
+    } catch (error) {
+      await showModal("Error", error)
     }
+  }
 
-    async function disconnectPuck(e: Event) {
-        e.preventDefault()
-        try {
-            await showModal("Please Wait", "Disconnecting from puck", true)
+  async function disconnectPuck(e: Event) {
+    e.preventDefault()
+    try {
+      await showModal("Please Wait", "Disconnecting from puck", true)
 
-            if (puck.isConnected) {
-                await puck.disconnect()
-            }
+      if (puck.isConnected) {
+        await puck.disconnect()
+      }
 
-            mainContainer.removeClass("connected")
+      mainContainer.removeClass("connected")
 
-            await hideModal()
-        } catch (error) {
-            await showModal("Error", error)
-        }
+      await hideModal()
+    } catch (error) {
+      await showModal("Error", error)
     }
+  }
 
-    async function enableUart(e: Event) {
-        e.preventDefault()
-        try {
-            await showModal("Please Wait", "Enabling UART", true)
-            await puck.enableUart()
-            await disconnectPuck(e)
-            await hideModal()
-        } catch (error) {
-            await showModal("Error", error)
-        }
+  async function enableUart(e: Event) {
+    e.preventDefault()
+    try {
+      await showModal("Please Wait", "Enabling UART", true)
+      await puck.enableUart()
+      await disconnectPuck(e)
+      await hideModal()
+    } catch (error) {
+      await showModal("Error", error)
     }
+  }
 
-    async function changeName(e: Event) {
-        e.preventDefault()
-        try {
-            await showModal("Please Wait", "Reading puck name", true)
-            const currentName = await puck.getName()
-            const newName = prompt("Enter a name", currentName)
+  async function changeName(e: Event) {
+    e.preventDefault()
+    try {
+      await showModal("Please Wait", "Reading puck name", true)
+      const currentName = await puck.getName()
+      const newName = prompt("Enter a name", currentName)
 
-            if (newName != null) {
-                await showModal("Please Wait", "Setting puck name", true)
-                await puck.setName(newName)
-            }
+      if (newName != null) {
+        await showModal("Please Wait", "Setting puck name", true)
+        await puck.setName(newName)
+      }
 
-            await hideModal()
-        } catch (error) {
-            await showModal("Error", error)
-        }
+      await hideModal()
+    } catch (error) {
+      await showModal("Error", error)
     }
+  }
 
-    $("a#puckConnect").on("click", connectPuck)
-    $("a#puckDisconnect").on("click", disconnectPuck)
-    $("a#puckUart").on("click", enableUart)
-    $("a#puckName").on("click", changeName)
+  $("a#puckConnect").on("click", connectPuck)
+  $("a#puckDisconnect").on("click", disconnectPuck)
+  $("a#puckUart").on("click", enableUart)
+  $("a#puckName").on("click", changeName)
 })

@@ -1,3 +1,2 @@
 defaults
-not dead
-ie >= 9
+supports web-bluetooth
