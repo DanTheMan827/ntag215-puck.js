@@ -1,0 +1,24 @@
+#mainContainer {
+  max-width: 1024px;
+  width: 100% !important;
+  padding: 15px;
+
+  #puckDisconnect,
+  #puckUart,
+  #puckName {
+    display: none;
+  }
+
+  &.connected {
+    #puckConnect {
+      display: none;
+    }
+
+    #puckDisconnect,
+    #puckUart,
+    #puckName,
+    #slotsContainer {
+      display: block;
+    }
+  }
+}

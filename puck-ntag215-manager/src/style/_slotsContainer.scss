@@ -1,0 +1,33 @@
+#slotsContainer {
+  display: none;
+
+  .slot-title {
+    display: inline-block;
+    font-size: 2em;
+    font-weight: bold;
+
+    &:before {
+      content: "Slot ";
+    }
+  }
+
+  .slot-links {
+    font-weight: bold;
+    list-style: none;
+    padding: 0;
+
+    li {
+      display: inline-block;
+
+      &:before {
+        content: "|";
+        padding: 0 0.5em;
+      }
+
+      &:first-child:before {
+        content: "";
+        padding: 0;
+      }
+    }
+  }
+}
