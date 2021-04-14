@@ -13,26 +13,36 @@ jobs:
 
     steps:
       - uses: actions/checkout@v2
+
       - name: Use Node.js
         uses: actions/setup-node@v2
         with:
           node-version: 14.x
-      - run: |
+
+      - name: Set git identity
+        run: |
           git fetch --all
           git config --global user.name 'DanTheMan827 (Automated)'
           git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
-      - run: |
+
+      - name: Build web app
+        run: |
           REPOPATH="`pwd`"
           mkdir -p /tmp
           cp -R puck-ntag215-manager /tmp/builder
-          git checkout -b gh-pages --track origin/gh-pages
-          rm -r *
           cd /tmp/builder
           npm install
           npm run build
-          cp -R dist/* "$REPOPATH"
           cd "$REPOPATH"
+
+          git checkout -b gh-pages --track origin/gh-pages
+          rm -r *
+
           touch ".nojekyll"
+          cp -R /tmp/builder/dist/* "$REPOPATH"
+
+      - name: Commit files and push
+        run: |
           git add -A .
           if git commit -m "[Automated] Build management page"; then
             git push -u origin gh-pages
