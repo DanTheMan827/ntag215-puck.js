@@ -7,6 +7,7 @@ import { saveData, readFile } from "./fileHelpers"
 const anyWindow = (window as any)
 const blankTag = new Uint8Array(require('arraybuffer-loader!../NTAG215_blank.bin'))
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
+
 $(() => {
   const mainContainer = $("#mainContainer")
   const slotsContainer = $("#slotsContainer")
@@ -116,7 +117,7 @@ $(() => {
     return element
   }
 
-  async function connectPuck(e: Event) {
+  async function connectPuck(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
       await showModal("Please Wait", "Connecting to puck", true)
@@ -136,7 +137,7 @@ $(() => {
     }
   }
 
-  async function disconnectPuck(e: Event) {
+  async function disconnectPuck(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
       await showModal("Please Wait", "Disconnecting from puck", true)
@@ -153,7 +154,7 @@ $(() => {
     }
   }
 
-  async function enableUart(e: Event) {
+  async function enableUart(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
       await showModal("Please Wait", "Enabling UART", true)
@@ -165,7 +166,7 @@ $(() => {
     }
   }
 
-  async function changeName(e: Event) {
+  async function changeName(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
       await showModal("Please Wait", "Reading puck name", true)
