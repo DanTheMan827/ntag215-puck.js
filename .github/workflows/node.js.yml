@@ -29,7 +29,7 @@ jobs:
         run: |
           REPOPATH="`pwd`"
           mkdir -p /tmp
-          cp -R puck-ntag215-manager /tmp/builder
+          cp -LR puck-ntag215-manager /tmp/builder
           cd /tmp/builder
           npm install
           npm run build

@@ -98,7 +98,8 @@ module.exports = (env, argv) => smp.wrap({
   },
   plugins: [
     new HtmlWebpackPlugin({
-      template: './src/templates/index.pug'
+      template: './src/templates/index.pug',
+      minify: false
     }),
     new MiniCssExtractPlugin({
       // Options similar to the same options in webpackOptions.output

@@ -10,7 +10,8 @@
   }
 
   &.connected {
-    #puckConnect {
+    #puckConnect,
+    #readme {
       display: none;
     }
 

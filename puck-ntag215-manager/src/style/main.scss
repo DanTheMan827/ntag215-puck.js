@@ -5,3 +5,9 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
 @import "_githubCorner.scss";
 @import "_mainContainer.scss";
 @import "_slotsContainer.scss";
+
+#readme textarea {
+  width: 100%;
+  height: 400px;
+  font-family: monospace;
+}

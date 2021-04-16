@@ -12,4 +12,9 @@ html
       a.btn.btn-default.btn-lg.btn-block.well#puckName Change Name
       a.btn.btn-default.btn-lg.btn-block.well#puckUart Enable UART
 
-      div#slotsContainer
+      #readme
+        include:markdown-it ../../readme.md
+        textarea(readonly="readonly")
+          include:escape-html ../../ntag215.js
+
+      #slotsContainer

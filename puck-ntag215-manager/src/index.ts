@@ -7,10 +7,10 @@ import { saveData, readFile } from "./fileHelpers"
 const anyWindow = (window as any)
 const blankTag = new Uint8Array(require('arraybuffer-loader!../NTAG215_blank.bin'))
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
-
 $(() => {
   const mainContainer = $("#mainContainer")
   const slotsContainer = $("#slotsContainer")
+  const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
 
   if (__DEVELOPMENT__) {
@@ -187,4 +187,8 @@ $(() => {
   $("a#puckDisconnect").on("click", disconnectPuck)
   $("a#puckUart").on("click", enableUart)
   $("a#puckName").on("click", changeName)
+  $("#readme textarea, #readme a[href$='ntag215.js']").on("click", (e) => {
+    e.preventDefault()
+    scriptTextArea.trigger("focus").trigger("select")
+  })
 })
