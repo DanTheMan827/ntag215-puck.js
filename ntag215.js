@@ -392,6 +392,7 @@ setTimeout(function() {
 
       tag.filename = "tag" + currentTag + ".bin";
       tag.setData(tags[slot].buffer);
+      changeTagTimeout = null;
     }, 200);
   };
 
