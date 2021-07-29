@@ -368,7 +368,14 @@ setTimeout(function() {
   tag = new NFCTag(tags[currentTag].buffer);
   tag.filename = "tag" + currentTag + ".bin";
 
+  var changeTagTimeout = null;
+
   changeTag = function changeTag(slot){
+    if (changeTagTimeout){
+      clearTimeout(changeTagTimeout);
+      changeTagTimeout = null;
+    }
+
     NRF.nfcStop();
     currentTag = slot;
 
@@ -378,7 +385,7 @@ setTimeout(function() {
       LED3.write(currentTag + 1 & 4);
     }
 
-    setTimeout(function() {
+    changeTagTimeout = setTimeout(function() {
       LED1.write(0);
       LED2.write(0);
       LED3.write(0);
