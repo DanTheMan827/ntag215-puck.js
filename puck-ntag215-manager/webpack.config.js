@@ -115,7 +115,7 @@ module.exports = (env, argv) => smp.wrap({
     new webpack.DefinePlugin((() => {
       const mode = argv.mode || "development"
 
-      return  {
+      return {
         '__DEVELOPMENT__': mode === 'development',
         '__PRODUCTION__': mode === 'production'
       }
