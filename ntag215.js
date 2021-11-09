@@ -174,7 +174,13 @@ NFCTag.prototype = {
       return "normal";
     },
     0x30: function read(rx, self) {
-      NRF.nfcSend(self._readPage(rx[1]));
+      if (rx.length < 2) {
+        NRF.nfcSend(0x00);
+
+        return;
+      }
+      
+      NRF.nfcSend(new Uint8Array(this._data.buffer, rx[1] * 4, 16));
     },
     0xa2: function write(rx, self) {
       if (!self.backdoor && (rx[1] < 0 || rx[1] > 134 || self.lockedPages.indexOf(rx[1]) != -1)) {
