@@ -1,6 +1,8 @@
 # NTAG215 for Puck.js
 This repository contains code for an NTAG215 emulator for the Puck.js
 
+You can put the puck.js to sleep by holding the button for 5 seconds, to wake it just hold for another 5 seconds.
+
 Some notes about the script:
 - The code currently allows for 14 different tags with the first 7 able to be cycled through by pressing the button.
 - The script does not fully implement page locking or password protection.
