@@ -162,7 +162,7 @@ NFCTag.prototype = {
     }
 
     //send response
-    return new Uint8Array(this._data.buffer, page * 4, 4);
+    return new Uint8Array(self._data.buffer, page * 4, 4);
   },
   _responses: {
     version: new Uint8Array([0x00, 0x04, 0x04, 0x02, 0x01, 0x00, 0x11, 0x03]),
@@ -179,8 +179,8 @@ NFCTag.prototype = {
 
         return;
       }
-      
-      NRF.nfcSend(new Uint8Array(this._data.buffer, rx[1] * 4, 16));
+
+      NRF.nfcSend(new Uint8Array(self._data.buffer, rx[1] * 4, 16));
     },
     0xa2: function write(rx, self) {
       if (!self.backdoor && (rx[1] < 0 || rx[1] > 134 || self.lockedPages.indexOf(rx[1]) != -1)) {
@@ -321,6 +321,7 @@ var tags = (function() {
       data[i].buffer = output;
     } else {
       data[i].buffer = new Uint8Array(572);
+      data[i].buffer[3] = 0x88;
       data[i].buffer.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
       data[i].buffer.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
     }
@@ -404,13 +405,14 @@ function setInitWatch() {
   }, BTN, { repeat: false, edge: "rising", debounce: 5000 });
 }
 
+tag = new NFCTag(tags[currentTag].buffer);
+tag.filename = "tag" + currentTag + ".bin";
+
 function initialize() {
   LED1.write(0);
   LED2.write(0);
   LED3.write(0);
   clearWatch();
-  tag = new NFCTag(tags[currentTag].buffer);
-  tag.filename = "tag" + currentTag + ".bin";
 
   var changeTagTimeout = null;
 
@@ -439,6 +441,9 @@ function initialize() {
       changeTagTimeout = null;
     }, 200);
   };
+
+  tag.filename = "tag" + currentTag + ".bin";
+  tag.setData(tags[currentTag].buffer);
 
   setWatch(function() {
     clearWatch();
