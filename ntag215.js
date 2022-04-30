@@ -344,9 +344,6 @@ var currentTag = 0;
 var tag;
 var changeTag;
 var enableUart = false;
-LED1.write(1);
-LED2.write(1);
-LED3.write(1);
 
 function getTagInfo(slot){
   var output = Uint8Array(80);
@@ -360,13 +357,54 @@ function getTagInfo(slot){
   return output;
 }
 
-setWatch(function() {
-  enableUart = true;
-  LED1.write(0);
-  LED2.write(0);
-}, BTN, { repeat: false, edge: "rising", debounce: 50 });
+function setUartWatch(){
+  NRF.setServices({ }, { uart : true });
 
-setTimeout(function() {
+  enableUart = false;
+
+  LED1.write(1);
+  LED2.write(1);
+  LED3.write(1);
+
+  setWatch(function() {
+    enableUart = true;
+    LED1.write(0);
+    LED2.write(0);
+  }, BTN, { repeat: false, edge: "rising", debounce: 50 });
+
+  setTimeout(initialize, 5000);
+}
+
+function flashLed(led, interval, times, callback) {
+  if (times < 1) {
+    if (callback) {
+      return callback();
+    } else {
+      return;
+    }
+  }
+
+  led.write(1);
+
+  setTimeout(function(){
+    led.write(0);
+
+    setTimeout(function(){
+      flashLed(led, interval, times - 1, callback);
+    }, interval);
+  }, interval);
+}
+
+function setInitWatch() {
+  setWatch(function() {
+    flashLed(LED2, 150, 2, function() {
+      NRF.wake();
+      setUartWatch();
+    });
+  }, BTN, { repeat: false, edge: "rising", debounce: 5000 });
+}
+
+function initialize() {
   LED1.write(0);
   LED2.write(0);
   LED3.write(0);
@@ -376,7 +414,7 @@ setTimeout(function() {
 
   var changeTagTimeout = null;
 
-  changeTag = function changeTag(slot){
+  changeTag = function changeTag(slot) {
     if (changeTagTimeout){
       clearTimeout(changeTagTimeout);
       changeTagTimeout = null;
@@ -403,8 +441,16 @@ setTimeout(function() {
   };
 
   setWatch(function() {
+    clearWatch();
+    setInitWatch();
+    NRF.sleep();
+    NRF.nfcStop();
+    flashLed(LED1, 150, 2);
+  }, BTN, { repeat: false, edge: "rising", debounce: 5000 });
+
+  setWatch(function() {
     changeTag(++currentTag >= 7 ? 0 : currentTag);
-  }, BTN, { repeat: true, edge: "rising", debounce: 50 });
+  }, BTN, { repeat: true, edge: "falling", debounce: 50 });
 
   /**
   var tagLayout = [
@@ -552,4 +598,6 @@ setTimeout(function() {
 
     NRF.setServices(services, { uart : false, advertise: [serviceId] });
   }
-}, 5000);
+}
+
+setUartWatch();
