@@ -4,7 +4,7 @@
 name: Node.js Build Test
 
 on: 
-  pull:
+  pull_request:
   workflow_dispatch:
 
 jobs:
