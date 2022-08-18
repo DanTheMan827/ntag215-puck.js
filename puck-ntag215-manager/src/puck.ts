@@ -207,9 +207,32 @@ export class Puck {
       }
 
       await this.restartNfc(info.currentSlot)
+      await this.saveSlot(slot)
     } else {
       throw new Error(`Invalid slot: ${slot}`)
     }
+  }
+
+  async saveSlot(slot: number = null) {
+    if (!this.isConnected) {
+      throw new Error("Puck is not connected")
+    }
+
+    const command = [Puck.Command.SaveSlot]
+
+    if (slot != null) {
+      this.log(`Saving slot ${slot}`)
+
+      if (slot >= 0 && slot < this.totalSlots) {
+        command.push(slot)
+      } else {
+        throw new Error(`Invalid slot: ${slot}`)
+      }
+    } else {
+      this.log("Saving current slot")
+    }
+
+    await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
   }
 
   async getSlotInformation(): Promise<Puck.SlotInfo> {
@@ -304,6 +327,7 @@ export namespace Puck {
     SlotInformation = 0x01,
     Read = 0x02,
     Write = 0x03,
+    SaveSlot = 0x04,
     MoveSlot = 0xFD,
     EnableUart = 0xFE,
     RestartNFC = 0xFF
