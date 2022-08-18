@@ -25,6 +25,8 @@ OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
 THE SOFTWARE.
 */
 
+const SAVE_TO_FLASH = false;
+
 function NFCTag(data) {
   this.setData(data);
   this.authenticated = false;
@@ -56,8 +58,10 @@ function NFCTag(data) {
     this.lockedPages = self._getLockedPages();
 
     if (self.tagWritten == true) {
-      console.log("Saving tag to flash");
-      //require("Storage").write(self.filename, this._data);
+      if (SAVE_TO_FLASH) {
+        console.log("Saving tag to flash");
+        require("Storage").write(self.filename, this._data);
+      }
       self.tagWritten = false;
     }
 
@@ -557,6 +561,15 @@ function initialize() {
                 //console.log("Write size: " + dataSize);
 
                 tags[slot].buffer.set(new Uint8Array(evt.data, 3, dataSize), startIdx);
+              }
+            })(); break;
+
+            case 0x04: (function() {//Write <Slot> <StartPage> <Data>
+              var slot = evt.data[1] < tags.length ? evt.data[1] : currentTag;
+
+              if (SAVE_TO_FLASH) {
+                console.log("Saving tag to flash");
+                require("Storage").write(self.filename, self._data);
               }
             })(); break;
 
