@@ -60,7 +60,7 @@ function NFCTag(data) {
     if (self.tagWritten == true) {
       if (SAVE_TO_FLASH) {
         console.log("Saving tag to flash");
-        require("Storage").write(self.filename, this._data);
+        require("Storage").write(self.filename, self._data);
       }
       self.tagWritten = false;
     }
