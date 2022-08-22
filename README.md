@@ -22,6 +22,8 @@ You can find a web app for managing the tags at https://dantheman827.github.io/n
 
 The Bluetooth protocol involves sending commands to one characteristic, while reading the data from another. The command and return characteristics.
 
+A full WebBluetooth implementation of everything in TypeScript can be found in [puck.ts](https://github.com/DanTheMan827/ntag215-puck.js/blob/master/puck-ntag215-manager/src/puck.ts)
+
 **BLE Service:** `78290001-d52e-473f-a9f4-f03da7c67dd1`  
 **Command Characteristic:** `78290002-d52e-473f-a9f4-f03da7c67dd1`  
 **Return Characteristic:** `78290003-d52e-473f-a9f4-f03da7c67dd1`  
