@@ -618,4 +618,8 @@ function initialize() {
   }
 }
 
+if (storage.read("puck-name") == undefined) {
+  storage.write("puck-name", "Puck.js");
+}
+
 setUartWatch();
