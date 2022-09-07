@@ -32,7 +32,7 @@ jobs:
           mkdir -p /tmp
           cp -LR puck-ntag215-manager /tmp/builder
           cd /tmp/builder
-          npm install
+          npm install --force
           npm run build
           cd "$REPOPATH"
 
