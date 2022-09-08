@@ -121,7 +121,8 @@ module.exports = (env, argv) => {
     output: {
       path: internalPath,
       filename: '[contenthash].js',
-      devtoolModuleFilenameTemplate: 'https://dantheman827.github.io/ntag215-puck.js/[resource-path]?[loaders]'
+      devtoolNamespace: 'dantheman827.github.io/ntag215-puck.js',
+      devtoolModuleFilenameTemplate: 'https://[namespace]/[resource-path]?[loaders]'
     }
   }
 };
