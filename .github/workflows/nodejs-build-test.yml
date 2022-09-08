@@ -31,5 +31,5 @@ jobs:
           mkdir -p /tmp
           cp -LR puck-ntag215-manager /tmp/builder
           cd /tmp/builder
-          npm install
+          npm install --no-optional
           npm run build
