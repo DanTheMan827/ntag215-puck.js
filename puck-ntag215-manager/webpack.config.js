@@ -1,14 +1,11 @@
 const path = require('path');
 const MiniCssExtractPlugin = require("mini-css-extract-plugin");
-const OptimizeCSSAssetsPlugin = require("optimize-css-assets-webpack-plugin");
-const UglifyJsPlugin = require("uglifyjs-webpack-plugin");
+const CssMinimizerPlugin = require("css-minimizer-webpack-plugin");
+const TerserPlugin = require("terser-webpack-plugin");
 const webpack = require('webpack');
-const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const smp = new SpeedMeasurePlugin();
 const internalPath = path.resolve(path.join(__dirname, 'node_modules', '.cache', 'dist-temp'));
-const publicPath = '/dist/';
 
 
 const babelLoader = {
@@ -31,108 +28,99 @@ styleEntries = {
   style: './stylesheets/main.scss'
 }
 
-module.exports = (env, argv) => smp.wrap({
-  mode: argv.mode || "development",
-  entry: { ...jsEntries },
-  devtool: "source-map",
-  module: {
-    rules: [
-      {
-        test: /\.(?:js|ts)x?$/,
-        use: [
-          babelLoader
-        ],
-        exclude: /(node_modules|bower_components)/
-      },
-      {
-        test: /\.s?css$/,
-        use: [
-          {
-            loader: MiniCssExtractPlugin.loader
-          },
-          "css-loader", // translates CSS into CommonJS
-          "postcss-loader",
-          "sass-loader" // compiles Sass to CSS, using Node Sass by default
-        ]
-      },
-      {
-        test: /\.(?:pug|jade)$/,
-        use: [
-          babelLoader,
-          'pug-loader'
-        ]
-      },
-      {
-        test: /\.(gif|jpe?g|png|woff2?|eot|ttf|svg)$/,
-        loader: 'file-loader',
-        options: {
-          esModule: false,
-          outputPath: 'assets/'
-        }
-      }
-    ]
-  },
-  optimization: {
-    minimizer: argv.mode != "production" ? [] : [
-      new UglifyJsPlugin({
-        cache: false,
-        parallel: true,
-        sourceMap: true, // set to true if you want JS source maps
-        extractComments: {
-          condition: /^\**!|@preserve|@license|@cc_on/i,
-          filename(file) {
-            return `${file}.LICENSE`;
-          },
-          banner(licenseFile) {
-            return `License information can be found in ${licenseFile}`;
-          },
+module.exports = (env, argv) => {
+  return {
+    mode: argv.mode || "development",
+    entry: { ...jsEntries },
+    devtool: "source-map",
+    module: {
+      rules: [
+        {
+          test: /\.(?:js|ts)x?$/,
+          use: [
+            babelLoader
+          ],
+          exclude: /(node_modules|bower_components)/
         },
-      }),
-      new OptimizeCSSAssetsPlugin({})
-    ]
-  },
-  externals: {
-    window: "window",
-    document: "document",
-    location: "location"
-  },
-  plugins: [
-    new HtmlWebpackPlugin({
-      template: './src/templates/index.pug',
-      minify: false
-    }),
-    new MiniCssExtractPlugin({
-      // Options similar to the same options in webpackOptions.output
-      // both options are optional
-      filename: "[hash].css",
-      chunkFilename: "[id]-[hash].css"
-    }),
-    new webpack.ProvidePlugin({
-      $: "jquery",
-      jQuery: "jquery",
-      "window.jQuery": "jquery"
-    }),
-    new webpack.DefinePlugin((() => {
-      const mode = argv.mode || "development"
-
-      return {
-        '__DEVELOPMENT__': mode === 'development',
-        '__PRODUCTION__': mode === 'production'
-      }
-    })())
-  ],
-  resolve: {
-    alias: {
-      jquery: "jquery/src/jquery"
+        {
+          test: /\.s?css$/,
+          use: [
+            MiniCssExtractPlugin.loader,
+            "css-loader", // translates CSS into CommonJS
+            "postcss-loader",
+            "sass-loader" // compiles Sass to CSS, using Node Sass by default
+          ]
+        },
+        {
+          test: /\.(?:pug|jade)$/,
+          use: [
+            babelLoader,
+            'pug-loader'
+          ]
+        },
+        {
+          test: /\.(gif|jpe?g|png|woff2?|eot|ttf|svg)$/,
+          loader: 'file-loader',
+          options: {
+            esModule: false,
+            outputPath: 'assets/'
+          }
+        }
+      ]
     },
-    extensions: [
-      '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
-    ]
-  },
-  output: {
-    path: internalPath,
-    //publicPath: publicPath,
-    filename: '[hash].js',
-    sourceMapFilename: '[hash].map'
+    optimization: {
+      minimize: argv.mode == "production",
+      minimizer: argv.mode != "production" ? [] : [
+        new TerserPlugin(),
+        new CssMinimizerPlugin(),
+      ]
+    },
+    externals: {
+      window: "window",
+      document: "document",
+      location: "location"
+    },
+    plugins: [
+      new MiniCssExtractPlugin({
+        // Options similar to the same options in webpackOptions.output
+        // both options are optional
+        filename: "[contenthash].css",
+        chunkFilename: "[contenthash].css"
+      }),
+      new HtmlWebpackPlugin({
+        template: './src/templates/index.pug',
+        minify: false
+      }),
+      new webpack.ProvidePlugin({
+        $: "jquery",
+        jQuery: "jquery",
+        "window.jQuery": "jquery"
+      }),
+      new webpack.DefinePlugin((() => {
+        const mode = argv.mode || "development"
+
+        return {
+          '__DEVELOPMENT__': mode === 'development',
+          '__PRODUCTION__': mode === 'production'
+        }
+      })())
+    ],
+    resolve: {
+      alias: {
+        jquery: "jquery/src/jquery"
+      },
+      extensions: [
+        '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
+      ]
+    },
+    resolveLoader: {
+      alias: {
+        'espruino-loader': path.join(__dirname, 'espruino-loader.js')
+      }
+    },
+    output: {
+      path: internalPath,
+      filename: '[contenthash].js'
+    }
   }
-});
+};
