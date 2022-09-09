@@ -113,17 +113,12 @@ module.exports = (env, argv) => {
         '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
       ]
     },
-    resolveLoader: {
-      alias: {
-        'espruino-loader': path.join(__dirname, 'espruino-loader.js')
-      }
-    },
     output: {
       path: internalPath,
       filename: '[contenthash].js',
       sourceMapFilename: '[contenthash].map',
       devtoolNamespace: 'dantheman827.github.io/ntag215-puck.js',
-      devtoolModuleFilenameTemplate: 'https://[namespace]/[resource-path]?[loaders]'
+      devtoolModuleFilenameTemplate: 'https://[namespace]/[resource-path]'
     }
   }
 };
