@@ -92,7 +92,7 @@ $(() => {
           await writeSlot(slot, file.data, element)
         } catch (error) {
           await showModal("Error", error)
-        }``
+        }
       }, 572)
     })
 

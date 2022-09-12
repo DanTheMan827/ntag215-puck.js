@@ -25,7 +25,7 @@ $(() => {
   $("body").append(alertModal)
 })
 
-export async function showModal(title: string, message: string, preventClose: boolean = false) {
+export async function showModal(title: string, message: string, preventClose = false) {
   if (modalShowing) {
     await hideModal()
   }

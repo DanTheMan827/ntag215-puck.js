@@ -3,7 +3,8 @@
  * @returns An array with blank NTAG215 data.
  */
 export function getBlankNtag() {
-  var tag = new Uint8Array(572)
+  const tag = new Uint8Array(572)
+
   tag[0] = 0x04
   tag[1] = Math.round(Math.random() * 255)
   tag[2] = Math.round(Math.random() * 255)
@@ -17,5 +18,5 @@ export function getBlankNtag() {
   tag.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09)
   tag.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B)
 
-  return tag;
+  return tag
 }
