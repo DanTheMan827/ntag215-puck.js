@@ -50,7 +50,7 @@ export const supportsBluetooth = ((): true | string => {
 
   if (!navigator.bluetooth) {
     if (isAppleDevice()) {
-      return "Safari on iOS has no Web Bluetooth support. You need <a href=\"https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055\" target=\"_blank\">to use the WebBLE app</a>"
+      return "Safari on iOS has no Web Bluetooth support. You need to use <a href=\"https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055\" target=\"_blank\">Bluefy – Web BLE Browser</a>"
     } else if (isChrome() && isLinux()) {
       return "Chrome on Linux requires <code>chrome://flags/#enable-experimental-web-platform-features</code> to be enabled."
     } else if (isFirefox()) {
