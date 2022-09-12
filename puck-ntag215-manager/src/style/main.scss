@@ -11,3 +11,9 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
   height: 400px;
   font-family: monospace;
 }
+
+@media only screen and (max-width: 1400px) {
+  body {
+      padding-bottom: 63px;
+  }
+}
