@@ -25,7 +25,7 @@ $(() => {
   $("body").append(alertModal)
 })
 
-export async function showModal(title: string, message: string, preventClose = false) {
+export async function showModal(title: string, message: string, preventClose = false, htmlEscapeTitle = true, htmlEscapeBody = true) {
   if (modalShowing) {
     await hideModal()
   }
@@ -33,12 +33,20 @@ export async function showModal(title: string, message: string, preventClose = f
   modalShowing = true
   if (title != null) {
     modalHeader.show()
-    modalTitle.text(title)
+    if (htmlEscapeTitle) {
+      modalTitle.text(title)
+    } else {
+      modalTitle.html(title)
+    }
   } else {
     modalHeader.hide()
   }
 
-  modalBody.text(message)
+  if (htmlEscapeBody) {
+    modalBody.text(message)
+  } else {
+    modalBody.html(message)
+  }
 
   if (preventClose) {
     modalFooter.hide()

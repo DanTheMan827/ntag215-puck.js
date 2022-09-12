@@ -4,6 +4,7 @@ import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
 import { showModal, hideModal, setModal } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
+import { supportsBluetooth } from "./browserCheck"
 
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
@@ -13,6 +14,10 @@ $(() => {
   const slotsContainer = $("#slotsContainer")
   const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
+
+  if (supportsBluetooth !== true) {
+    showModal("Unsupported Browser", supportsBluetooth, true, true, false)
+  }
 
   if (__DEVELOPMENT__) {
     anyWindow.debug = {
@@ -119,6 +124,7 @@ $(() => {
 
   async function connectPuck(e: Event | JQuery.Event) {
     e.preventDefault()
+
     try {
       await showModal("Please Wait", "Connecting to puck", true)
       await puck.connect(async (ev) => {

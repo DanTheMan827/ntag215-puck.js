@@ -18,7 +18,7 @@
     "@types/bootstrap": "^3.4.0",
     "@types/jquery": "^3.5.14",
     "@types/node": "^12.20.55",
-    "@types/web-bluetooth": "0.0.9",
+    "@types/web-bluetooth": "0.0.15",
     "acorn": "^8.8.0",
     "babel-loader": "^8.2.5",
     "babel-plugin-transform-es2015-modules-commonjs": "^6.26.2",
