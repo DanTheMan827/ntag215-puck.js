@@ -71,7 +71,13 @@ module.exports = (env, argv) => {
     optimization: {
       minimize: argv.mode == "production",
       minimizer: argv.mode != "production" ? [] : [
-        new TerserPlugin(),
+        new TerserPlugin({
+          terserOptions: {
+            format: {
+              ascii_only: true
+            }
+          }
+        }),
         new CssMinimizerPlugin(),
       ]
     },
@@ -107,7 +113,8 @@ module.exports = (env, argv) => {
     ],
     resolve: {
       alias: {
-        jquery: "jquery/src/jquery"
+        jquery: "jquery/src/jquery",
+        "web-bluetooth-dfu": "web-bluetooth-dfu/lib/index.js"
       },
       extensions: [
         '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
