@@ -51,11 +51,7 @@
   }
 
   @media (max-width: 1170px) {
-    .github-corner svg {
-      display: none;
-    }
-
-    a.github-corner {
+    .github-corner {
       position: absolute;
       top: 0;
       left: 0;
@@ -68,6 +64,10 @@
       text-align: center;
 
       opacity: 0.7;
+
+      & svg {
+        display: none;
+      }
 
       &:hover {
         opacity: 1;
