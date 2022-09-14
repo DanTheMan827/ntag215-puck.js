@@ -5,6 +5,8 @@ import { Puck } from "./puck"
 import { showModal, hideModal, setModal } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
 import { supportsBluetooth } from "./browserCheck"
+import * as EspruinoHelper from "./espruino"
+import { SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
@@ -15,6 +17,7 @@ $(() => {
   const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
 
+
   if (supportsBluetooth !== true) {
     showModal("Unsupported Browser", supportsBluetooth, true, true, false)
   }
@@ -23,12 +26,13 @@ $(() => {
     anyWindow.debug = {
       ...(anyWindow.debug || {}),
       ...{
-        puck,
-        showModal,
+        EspruinoHelper,
         hideModal,
-        setModal,
+        puck,
+        readFile,
         saveData,
-        readFile
+        setModal,
+        showModal
       }
     }
   }
@@ -86,19 +90,12 @@ $(() => {
     element.find("a.slot-upload-link").on("click", async (e) => {
       e.preventDefault()
 
-      readFile(async (file, error) => {
-        try {
-          if (error != null) {
-            await showModal("Error", error.message)
-
-            return
-          }
-
-          await writeSlot(slot, file.data, element)
-        } catch (error) {
-          await showModal("Error", error)
-        }
-      }, 572)
+      try {
+        const file = await readFile(572)
+        await writeSlot(slot, file.data, element)
+      } catch (error) {
+        await showModal("Error", error.message)
+      }
     })
 
     element.find("a.slot-clear-link").on("click", async (e) => {
@@ -190,10 +187,58 @@ $(() => {
     }
   }
 
+  async function uploadScript(e: Event | JQuery.Event) {
+    try {
+      await showModal("Please Wait", "Connecting to puck", true)
+      await EspruinoHelper.open()
+
+      const ver = await EspruinoHelper.getNtagVersion()
+
+      if (!(ver.major == 1 && ver.minor >= 0)) {
+        throw new Error("You must flash the custom firmware prior to uploading the script.")
+      }
+
+      await showModal("Uploading", "Uploading script file, please wait.")
+      await EspruinoHelper.writeCode()
+      EspruinoHelper.close()
+      await hideModal()
+    } catch (error) {
+      EspruinoHelper.close()
+      await showModal("Error", error)
+    }
+  }
+
+  async function updateFirmware(e: Event | JQuery.Event) {
+    try {
+      let previousMessage: string
+
+      async function status (event: SecureDfuUpdateMessage) {
+        previousMessage = event.message
+        await showModal("Updating Firmware", previousMessage, event.final !== true)
+      }
+
+      async function log (event: SecureDfuUpdateMessage) {
+        console.log(event)
+      }
+
+      async function progress(event: SecureDfuUpdateProgress) {
+        setModal("Updating Firmware", `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`)
+      }
+
+      const dfu = new SecureDfuUpdate(status, log, progress)
+
+      await dfu.update()
+    } catch (error) {
+      await showModal("Error", error)
+    }
+  }
+
   $("a#puckConnect").on("click", connectPuck)
   $("a#puckDisconnect").on("click", disconnectPuck)
   $("a#puckUart").on("click", enableUart)
   $("a#puckName").on("click", changeName)
+  $("#uploadScript").on("click", uploadScript)
+  $("#updateFirmware").on("click", updateFirmware)
   $("#readme textarea, #readme a[href$='ntag215.js']").on("click", (e) => {
     e.preventDefault()
     scriptTextArea.trigger("focus").trigger("select")

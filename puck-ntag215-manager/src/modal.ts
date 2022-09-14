@@ -65,6 +65,27 @@ export async function showModal(title: string, message: string, preventClose = f
   await sleep(200)
 }
 
+export function setTitle(title: string, htmlEscape = true) {
+  if (title != null) {
+    modalHeader.show()
+    if (htmlEscape) {
+      modalTitle.text(title)
+    } else {
+      modalTitle.html(title)
+    }
+  } else {
+    modalHeader.hide()
+  }
+}
+
+export function setBody(title: string, htmlEscape = true) {
+  if (htmlEscape) {
+    modalBody.text(title)
+  } else {
+    modalBody.html(title)
+  }
+}
+
 export async function hideModal() {
   const backdrop = $("body > .modal-backdrop")
   alertModal.modal("hide")

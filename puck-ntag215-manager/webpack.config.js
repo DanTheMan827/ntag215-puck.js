@@ -5,9 +5,6 @@ const TerserPlugin = require("terser-webpack-plugin");
 const webpack = require('webpack');
 const HtmlWebpackPlugin = require('html-webpack-plugin');
 
-const internalPath = path.resolve(path.join(__dirname, 'node_modules', '.cache', 'dist-temp'));
-
-
 const babelLoader = {
   loader: "babel-loader",
   options: {
@@ -29,6 +26,10 @@ styleEntries = {
 }
 
 module.exports = (env, argv) => {
+  const internalPath = env.WEBPACK_WATCH ?
+    path.resolve(path.join(__dirname, 'dist')) :
+    path.resolve(path.join(__dirname, 'node_modules', '.cache', 'dist-temp'));
+
   return {
     mode: argv.mode || "development",
     entry: { ...jsEntries },
@@ -107,14 +108,17 @@ module.exports = (env, argv) => {
 
         return {
           '__DEVELOPMENT__': mode === 'development',
-          '__PRODUCTION__': mode === 'production'
+          '__PRODUCTION__': mode === 'production',
+          'process.env.NODE_DEBUG': undefined
         }
       })())
     ],
     resolve: {
       alias: {
         jquery: "jquery/src/jquery",
-        "web-bluetooth-dfu": "web-bluetooth-dfu/lib/index.js"
+        "web-bluetooth-dfu": "web-bluetooth-dfu/lib/index.js",
+        acorn: path.join(__dirname, "node_modules", "acorn"),
+        esprima: path.join(__dirname, "node_modules", "esprima")
       },
       extensions: [
         '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
