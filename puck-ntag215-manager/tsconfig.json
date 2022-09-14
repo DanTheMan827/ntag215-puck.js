@@ -2,6 +2,7 @@
   "compilerOptions": {
     "outDir": "./dist/",
     "moduleResolution": "node",
+    "module": "NodeNext",
     "noImplicitAny": true,
     "noImplicitThis": true,
     "target": "es6",

@@ -17,7 +17,6 @@ $(() => {
   const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
 
-
   if (supportsBluetooth !== true) {
     showModal("Unsupported Browser", supportsBluetooth, true, true, false)
   }

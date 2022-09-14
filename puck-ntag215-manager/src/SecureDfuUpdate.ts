@@ -1,10 +1,10 @@
-import EventEmitter from "events"
 import SecureDfu from "web-bluetooth-dfu"
-import { EventDispatcher } from "./dispatcher"
 import { SecureDfuPackage } from "./SecureDfuPackage"
 
 const CRC32 = require("crc-32")
-const firmware: ArrayBuffer = require("arraybuffer-loader!../espruino_2v15.1_puckjs.zip")
+
+// @ts-ignore:next-line
+const firmware: Promise<{default: ArrayBuffer}> = import("arraybuffer-loader!../espruino_2v15.1_puckjs.zip")
 
 export interface SecureDfuUpdateProgress {
   object: string
@@ -17,7 +17,7 @@ export interface SecureDfuUpdateMessage {
   final?: boolean
 }
 
-export class SecureDfuUpdate extends EventDispatcher {
+export class SecureDfuUpdate {
   static EVENT_LOG = "log"
   static EVENT_PROGRESS = "progress"
   static EVENT_STATUS = "status"
@@ -28,7 +28,6 @@ export class SecureDfuUpdate extends EventDispatcher {
   statusCallback: (message: SecureDfuUpdateMessage) => any
 
   constructor(statusCallback: (message: SecureDfuUpdateMessage) => any, logCallback: (message: SecureDfuUpdateMessage) => any, progressCallback: (message: SecureDfuUpdateProgress) => any) {
-    super()
     this.logCallback = logCallback
     this.statusCallback = statusCallback
     this.progressCallback = progressCallback
@@ -38,14 +37,18 @@ export class SecureDfuUpdate extends EventDispatcher {
   }
 
   private async loadPackage(): Promise<SecureDfuPackage> {
-    return new SecureDfuPackage(firmware)
+    return new SecureDfuPackage((await firmware).default)
   }
 
   async update() {
-    const device = await this.dfu.requestDevice(false, null)
+    this.statusCallback({ message: "Loading firmware archive"})
     const updatePackage = await this.loadPackage()
+
     const baseImage = await updatePackage.getBaseImage()
     const appImage = await updatePackage.getAppImage()
+
+    this.statusCallback({ message: "Connecting to device"})
+    const device = await this.dfu.requestDevice(false, null)
 
     for (const image of [baseImage, appImage]) {
       if (image) {
