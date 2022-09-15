@@ -41,9 +41,7 @@ export class SecureDfuUpdate {
   }
 
   async update() {
-    this.statusCallback({ message: "Loading firmware archive"})
     const updatePackage = await this.loadPackage()
-
     const baseImage = await updatePackage.getBaseImage()
     const appImage = await updatePackage.getAppImage()
 
@@ -59,4 +57,8 @@ export class SecureDfuUpdate {
 
     this.statusCallback({ message: "Update complete!", final: true })
   }
+}
+
+export async function waitForFirmware() {
+  await firmware
 }

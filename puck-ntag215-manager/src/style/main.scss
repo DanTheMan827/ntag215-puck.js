@@ -19,18 +19,18 @@ $icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
 }
 
 @include media-breakpoint-up(md) {
-  a#updateFirmware, #uploadScript {
+  #updateFirmware, #uploadScript {
     width: calc(50% - 10px);
     display: inline-block;
     margin-bottom: 0;
     margin-top: 0px;
   }
 
-  a#updateFirmware {
+  #updateFirmware {
     margin-right: 10px;
   }
 
-  a#uploadScript {
+  #uploadScript {
     margin-left: 10px;
   }
 }

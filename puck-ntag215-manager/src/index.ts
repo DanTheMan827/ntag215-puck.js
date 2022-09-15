@@ -5,8 +5,8 @@ import { Puck } from "./puck"
 import { showModal, hideModal, setModal } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
 import { supportsBluetooth } from "./browserCheck"
+import { SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 import * as EspruinoHelper from "./espruino"
-import { SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
@@ -207,37 +207,44 @@ $(() => {
     }
   }
 
-  async function updateFirmware(e: Event | JQuery.Event) {
-    try {
-      let previousMessage: string
+  (async () => {
+    // load the firmware updater
+    const { SecureDfuUpdate, waitForFirmware } = await import("./SecureDfuUpdate")
+    await waitForFirmware()
 
-      async function status (event: SecureDfuUpdateMessage) {
-        previousMessage = event.message
-        await showModal("Updating Firmware", previousMessage, event.final !== true)
+    async function updateFirmware(e: Event | JQuery.Event) {
+      try {
+        let previousMessage: string
+
+        async function status (event: SecureDfuUpdateMessage) {
+          previousMessage = event.message
+          await showModal("Updating Firmware", previousMessage, event.final !== true)
+        }
+
+        async function log (event: SecureDfuUpdateMessage) {
+          console.log(event)
+        }
+
+        async function progress(event: SecureDfuUpdateProgress) {
+          setModal("Updating Firmware", `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`)
+        }
+
+        const dfu = new SecureDfuUpdate(status, log, progress)
+
+        await dfu.update()
+      } catch (error) {
+        await showModal("Error", error)
       }
-
-      async function log (event: SecureDfuUpdateMessage) {
-        console.log(event)
-      }
-
-      async function progress(event: SecureDfuUpdateProgress) {
-        setModal("Updating Firmware", `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`)
-      }
-
-      const dfu = new SecureDfuUpdate(status, log, progress)
-
-      await dfu.update()
-    } catch (error) {
-      await showModal("Error", error)
     }
-  }
 
-  $("a#puckConnect").on("click", connectPuck)
-  $("a#puckDisconnect").on("click", disconnectPuck)
-  $("a#puckUart").on("click", enableUart)
-  $("a#puckName").on("click", changeName)
-  $("#uploadScript").on("click", uploadScript)
-  $("#updateFirmware").on("click", updateFirmware)
+    $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
+  })()
+
+  $("#puckConnect").on("click", connectPuck).prop("disabled", false)
+  $("#puckDisconnect").on("click", disconnectPuck).prop("disabled", false)
+  $("#puckUart").on("click", enableUart).prop("disabled", false)
+  $("#puckName").on("click", changeName).prop("disabled", false)
+  $("#uploadScript").on("click", uploadScript).prop("disabled", false)
   $("#readme textarea, #readme a[href$='ntag215.js']").on("click", (e) => {
     e.preventDefault()
     scriptTextArea.trigger("focus").trigger("select")
