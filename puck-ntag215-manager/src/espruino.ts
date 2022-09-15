@@ -3,11 +3,11 @@ import { hideModal } from "./modal"
 // tslint:disable-next-line: variable-name
 export const Espruino = require("!espruino-loader!espruino/espruino.js")
 Espruino.Core.Status = {
-  setStatus : console.log,
-  hasProgress : console.log,
-  incrementProgress : console.log,
-  showStatusWindow : console.log,
-  hideStatusWindow : console.log
+  setStatus: console.log,
+  hasProgress: console.log,
+  incrementProgress: console.log,
+  showStatusWindow: console.log,
+  hideStatusWindow: console.log
 }
 
 Espruino.Core.Notifications = {
@@ -113,15 +113,16 @@ export async function getNtagVersion(): Promise<SemVer> {
   }
 }
 
-export function getCode(): Promise<string> {
+export function getCode(options: { saveToFlash?: boolean } = {}): Promise<string> {
   return new Promise((resolve, reject) => {
-    if (!isConnected()) {
-      reject(new Error("Device not connected"))
+    const { saveToFlash = false } = options
+    let code = $("#code").text()
 
-      return
-    }
+    code = code.replace(
+      /(const SAVE_TO_FLASH = )(true|false);/,
+      `$1${saveToFlash};`)
 
-    Espruino.callProcessor("transformForEspruino", $("#code").text(), resolve)
+    Espruino.callProcessor("transformForEspruino", code, resolve)
   })
 }
 

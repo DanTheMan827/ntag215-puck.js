@@ -4,7 +4,7 @@ import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
 import { showModal, hideModal, setModal } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
-import { supportsBluetooth } from "./browserCheck"
+import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
 import { SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 import * as EspruinoHelper from "./espruino"
 
@@ -122,6 +122,7 @@ $(() => {
     e.preventDefault()
 
     try {
+      await bluetoothOrError()
       await showModal("Please Wait", "Connecting to puck", true)
       await puck.connect(async (ev) => {
         await disconnectPuck(ev)
@@ -188,6 +189,7 @@ $(() => {
 
   async function uploadScript(e: Event | JQuery.Event) {
     try {
+      await bluetoothOrError()
       await showModal("Please Wait", "Connecting to puck", true)
       await EspruinoHelper.open()
 
@@ -213,15 +215,26 @@ $(() => {
     await waitForFirmware()
 
     async function updateFirmware(e: Event | JQuery.Event) {
+      let modalShown = false
+      let canClose = true;
       try {
+        await bluetoothOrError()
+
         let previousMessage: string
 
-        async function status (event: SecureDfuUpdateMessage) {
+        async function status(event: SecureDfuUpdateMessage) {
           previousMessage = event.message
-          await showModal("Updating Firmware", previousMessage, event.final !== true)
+          canClose = event.final
+
+          if (modalShown === false || event.final) {
+            modalShown = true
+            await showModal("Updating Firmware", previousMessage, event.final !== true)
+          } else {
+            setModal("Updating Firmware", previousMessage)
+          }
         }
 
-        async function log (event: SecureDfuUpdateMessage) {
+        async function log(event: SecureDfuUpdateMessage) {
           console.log(event)
         }
 
@@ -233,12 +246,16 @@ $(() => {
 
         await dfu.update()
       } catch (error) {
-        await showModal("Error", error)
+        if (modalShown === false || canClose !== true) {
+          await showModal("Error", error)
+        } else {
+          setModal("Error", error)
+        }
       }
     }
 
     $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
-  })()
+  })();
 
   $("#puckConnect").on("click", connectPuck).prop("disabled", false)
   $("#puckDisconnect").on("click", disconnectPuck).prop("disabled", false)

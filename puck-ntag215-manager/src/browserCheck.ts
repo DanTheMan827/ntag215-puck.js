@@ -62,3 +62,16 @@ export const supportsBluetooth = ((): true | string => {
 
   return true
 })()
+
+/***
+* If bluetooth is currently unavailable, an error is thrown if it is not.
+*
+* The function will also return a boolean.
+*/
+export async function bluetoothOrError() {
+  if (supportsBluetooth !== true || await navigator.bluetooth.getAvailability() !== true) {
+    throw new Error("Bluetooth is not currently available.")
+  }
+
+  return true
+}

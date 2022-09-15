@@ -4,7 +4,7 @@ import { SecureDfuPackage } from "./SecureDfuPackage"
 const CRC32 = require("crc-32")
 
 // @ts-ignore:next-line
-const firmware: Promise<{default: ArrayBuffer}> = import("arraybuffer-loader!../espruino_2v15.1_puckjs.zip")
+const firmware: Promise<{ default: ArrayBuffer }> = import("arraybuffer-loader!../espruino_2v15.1_puckjs.zip")
 
 export interface SecureDfuUpdateProgress {
   object: string
@@ -23,11 +23,11 @@ export class SecureDfuUpdate {
   static EVENT_STATUS = "status"
 
   dfu: SecureDfu
-  logCallback: (message: SecureDfuUpdateMessage) => any
-  progressCallback: (message: SecureDfuUpdateProgress) => any
-  statusCallback: (message: SecureDfuUpdateMessage) => any
+  logCallback: (message: SecureDfuUpdateMessage) => Promise<any>
+  progressCallback: (message: SecureDfuUpdateProgress) => Promise<any>
+  statusCallback: (message: SecureDfuUpdateMessage) => Promise<any>
 
-  constructor(statusCallback: (message: SecureDfuUpdateMessage) => any, logCallback: (message: SecureDfuUpdateMessage) => any, progressCallback: (message: SecureDfuUpdateProgress) => any) {
+  constructor(statusCallback: (message: SecureDfuUpdateMessage) => Promise<any>, logCallback: (message: SecureDfuUpdateMessage) => Promise<any>, progressCallback: (message: SecureDfuUpdateProgress) => Promise<any>) {
     this.logCallback = logCallback
     this.statusCallback = statusCallback
     this.progressCallback = progressCallback
@@ -45,17 +45,17 @@ export class SecureDfuUpdate {
     const baseImage = await updatePackage.getBaseImage()
     const appImage = await updatePackage.getAppImage()
 
-    this.statusCallback({ message: "Connecting to device"})
+    await this.statusCallback({ message: "Connecting to device" })
     const device = await this.dfu.requestDevice(false, null)
 
     for (const image of [baseImage, appImage]) {
       if (image) {
-        this.statusCallback({ message: `Updating ${image.type}: ${image.imageFile}...` })
+        await this.statusCallback({ message: `Updating ${image.type}: ${image.imageFile}...` })
         await this.dfu.update(device, image.initData, image.imageData);
       }
     }
 
-    this.statusCallback({ message: "Update complete!", final: true })
+    await this.statusCallback({ message: "Update complete!", final: true })
   }
 }
 
