@@ -69,6 +69,10 @@ export interface SemVer {
   patch: number
 }
 
+export interface GetCodeOptions {
+  saveToFlash?: boolean
+}
+
 export function isConnected(): boolean {
   return Espruino.Core.Serial.isConnected()
 }
@@ -113,7 +117,7 @@ export async function getNtagVersion(): Promise<SemVer> {
   }
 }
 
-export function getCode(options: { saveToFlash?: boolean } = {}): Promise<string> {
+export function getCode(options: GetCodeOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const { saveToFlash = false } = options
     let code = $("#code").text()
@@ -126,7 +130,7 @@ export function getCode(options: { saveToFlash?: boolean } = {}): Promise<string
   })
 }
 
-export function writeCode(): Promise<void> {
+export function writeCode(options: GetCodeOptions = {}): Promise<void> {
   return new Promise(async (resolve, reject) => {
     if (!isConnected()) {
       reject(new Error("Device not connected"))
@@ -134,9 +138,6 @@ export function writeCode(): Promise<void> {
       return
     }
 
-    Espruino.Core.CodeWriter.writeToEspruino(await getCode(), async () => {
-      await executeExpression("load()")
-      resolve()
-    })
+    Espruino.Core.CodeWriter.writeToEspruino(await getCode(options), resolve)
   })
 }
