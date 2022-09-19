@@ -17,6 +17,11 @@ $(() => {
   const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
   const firmwareName = $("#code").text().match(/const FIRMWARE_NAME = \"([^"]+)\";/)[1]
+  let updateFirmware: (e: Event | JQuery.Event, throwError?: boolean) => Promise<void> | undefined
+  let firmwareUpdateResolve: (value: any) => void
+  const firmwareUpdateLoaded = new Promise((resolve, reject) => {
+    firmwareUpdateResolve = resolve
+  })
 
   if (supportsBluetooth !== true) {
     showModal({
@@ -273,8 +278,26 @@ $(() => {
 
       const ver = await EspruinoHelper.getNtagVersion()
 
-      if (!(ver.major == 1 && ver.minor >= 0)) {
-        throw new Error("You must flash the custom firmware prior to uploading the script.")
+      if (!(ver.major === 1 && ver.minor >= 0)) {
+        EspruinoHelper.close()
+
+        if (ModalResult.ButtonYes === await showModal({
+          title: "Firmware Update",
+          message: "To use this script you must install a custom firmware onto your Puck.js, do you want to do that now?",
+          preventClose: true,
+          buttons: ModalButtonTypes.YesNo,
+          dialog: true
+        })) {
+          await showModal({
+            title: "Loading Firmware",
+            message: "Downloading firmware",
+            preventClose: true
+          })
+          await firmwareUpdateLoaded
+          await updateFirmware(e, true)
+        } else {
+          return
+        }
       }
 
       const modalResult = await showModal({
@@ -313,11 +336,19 @@ $(() => {
     const { SecureDfuUpdate, waitForFirmware } = await import("./SecureDfuUpdate")
     await waitForFirmware()
 
-    async function updateFirmware(e: Event | JQuery.Event) {
+    updateFirmware = async (e: Event | JQuery.Event, throwError?: boolean) => {
       let modalShown = false
       let canClose = true;
       try {
         await bluetoothOrError()
+
+        await showModal({
+          title: "Instructions",
+          message: "To enter DFU mode, please remove the battery from your Puck.js and re-insert it while holding the power button until the LED indicator turns green.",
+          dialog: true,
+          preventClose: true,
+          buttons: ModalButtonTypes.Next
+        })
 
         let previousMessage: string
 
@@ -355,6 +386,10 @@ $(() => {
 
         await dfu.update()
       } catch (error) {
+        if (throwError) {
+          throw error
+        }
+
         if (modalShown === false || canClose !== true) {
           await showModal({
             title: "Error",
@@ -370,7 +405,12 @@ $(() => {
     }
 
     $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
-  })();
+
+    if (firmwareUpdateResolve) {
+      firmwareUpdateResolve(true)
+      firmwareUpdateResolve = null
+    }
+  })()
 
   $("#puckConnect").on("click", connectPuck).prop("disabled", false)
   $("#puckDisconnect").on("click", disconnectPuck).prop("disabled", false)

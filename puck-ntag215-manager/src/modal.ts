@@ -59,7 +59,8 @@ export enum ModalButtonTypes {
   None,
   Close,
   YesNo,
-  YesNoCancel
+  YesNoCancel,
+  Next
 }
 
 export enum ModalResult {
@@ -97,6 +98,11 @@ export enum ModalResult {
    * User pressed the "Cancel" button.
    */
   ButtonCancel,
+
+  /**
+   * User pressed the "Next" button.
+   */
+  ButtonNext,
 
   /**
    * User pressed the "X" button in the corner of the window.
@@ -149,7 +155,7 @@ async function modalButtonClick(this: HTMLElement | JQuery<HTMLElement>, e: any)
     if (dataValue.match(/^\d+$/)) {
       const intValue = parseInt(dataValue, 10)
 
-      if ([ModalResult.ButtonYes, ModalResult.ButtonNo, ModalResult.ButtonCancel, ModalResult.ButtonClose, ModalResult.ButtonCloseX].includes(intValue)) {
+      if ([ModalResult.ButtonYes, ModalResult.ButtonNo, ModalResult.ButtonCancel, ModalResult.ButtonClose, ModalResult.ButtonCloseX, ModalResult.ButtonNext].includes(intValue)) {
         resolve(intValue as ModalResult)
       }
     } else {
@@ -213,6 +219,12 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
         value: ModalResult.ButtonCancel
       })
       break
+
+    case ModalButtonTypes.Next:
+      buttonList.push({
+        label: "Next",
+        value: ModalResult.ButtonNext
+      })
 
     case ModalButtonTypes.None:
     default:
