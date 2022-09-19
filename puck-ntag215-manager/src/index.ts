@@ -2,7 +2,7 @@ require("./style/main.scss")
 
 import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
-import { showModal, hideModal, setModal } from "./modal"
+import { showModal, hideModal, setModal, ModalShowOptions, ModalButtonTypes, ModalResult } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
 import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
 import { SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
@@ -16,14 +16,19 @@ $(() => {
   const slotsContainer = $("#slotsContainer")
   const scriptTextArea = $("#readme textarea")
   const slotTemplate = require("./templates/slot.pug")
+  const firmwareName = $("#code").text().match(/const FIRMWARE_NAME = \"([^"]+)\";/)[1]
 
   if (supportsBluetooth !== true) {
-    showModal("Unsupported Browser", supportsBluetooth, true, true, false)
+    showModal({
+      title: "Unsupported Browser",
+      message: supportsBluetooth,
+      htmlEscapeBody: false
+    })
   }
 
   if (__DEVELOPMENT__) {
     anyWindow.debug = {
-      ...(anyWindow.debug || {}),
+      ...(anyWindow.debug || { }),
       ...{
         EspruinoHelper,
         hideModal,
@@ -43,7 +48,9 @@ $(() => {
       const info = await puck.getSlotInformation()
 
       for (let i = 0; i < info.totalSlots; i++) {
-        setModal(null, `Reading Slot ${i + 1}`)
+        setModal({
+          message: `Reading Slot ${i + 1}`
+        })
         const slotInfo = await puck.readSlotSummary(i)
         slotsContainer.append(getSlotElement(i, slotInfo))
       }
@@ -61,7 +68,11 @@ $(() => {
   }
 
   async function writeSlot(slot: number, data: Uint8Array, element: JQuery<HTMLElement>) {
-    await showModal("Please Wait", `Writing slot ${slot + 1}`, true)
+    await showModal({
+      title: "Please Wait",
+      message: `Writing slot ${slot + 1}`,
+      preventClose: true
+    })
     await puck.writeSlot(slot, data)
     await updateSlotElement(slot, element)
     await hideModal()
@@ -77,12 +88,19 @@ $(() => {
       e.preventDefault()
 
       try {
-        await showModal("Please Wait", `Reading slot ${slot + 1}`, true)
+        await showModal({
+          title: "Please Wait",
+          message: `Reading slot ${slot + 1}`,
+          preventClose: true
+        })
         const data = await puck.readSlot(slot)
         await hideModal()
         saveData(data, `slot${slot}.bin`)
       } catch (error) {
-        await showModal("Error", error)
+        await showModal({
+          title: "Error",
+          message: error.toString()
+        })
       }
     })
 
@@ -93,7 +111,10 @@ $(() => {
         const file = await readFile(572)
         await writeSlot(slot, file.data, element)
       } catch (error) {
-        await showModal("Error", error.message)
+        await showModal({
+          title: "Error",
+          message: error.toString()
+        })
       }
     })
 
@@ -107,11 +128,18 @@ $(() => {
       e.preventDefault()
 
       try {
-        await showModal("Please Wait", `Changing to slot ${slot + 1}`, true)
+        await showModal({
+          title: "Please Wait",
+          message: `Changing to slot ${slot + 1}`,
+          preventClose: true
+        })
         await puck.changeSlot(slot)
         await hideModal()
       } catch (error) {
-        await showModal("Error", error)
+        await showModal({
+          title: "Error",
+          message: error.toString()
+        })
       }
     })
 
@@ -123,7 +151,11 @@ $(() => {
 
     try {
       await bluetoothOrError()
-      await showModal("Please Wait", "Connecting to puck", true)
+      await showModal({
+        title: "Please Wait",
+        message: "Connecting to puck",
+        preventClose: true
+      })
       await puck.connect(async (ev) => {
         await disconnectPuck(ev)
       })
@@ -134,18 +166,39 @@ $(() => {
         mainContainer.addClass("connected")
       }
 
-      await hideModal()
+      if (firmwareName !== puck.firmwareName) {
+        const installUpdatedScript = ModalResult.ButtonYes === await showModal({
+          title: "Script Update Available",
+          message: "There is a script update available, do you want to update?",
+          dialog: true,
+          buttons: ModalButtonTypes.YesNo
+        })
+
+        if (installUpdatedScript) {
+          await enableUart(e)
+          await uploadScript(e)
+        }
+      } else {
+        await hideModal()
+      }
+
     } catch (error) {
-      await showModal("Error", error)
+      await showModal({
+        title: "Error",
+        message: error.toString()
+      })
     }
   }
 
   async function disconnectPuck(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
-      await showModal("Please Wait", "Disconnecting from puck", true)
-
       if (puck.isConnected) {
+        await showModal({
+          title: "Please Wait",
+          message: "Disconnecting from puck",
+          preventClose: true
+        })
         await puck.disconnect()
       }
 
@@ -153,44 +206,69 @@ $(() => {
 
       await hideModal()
     } catch (error) {
-      await showModal("Error", error)
+      await showModal({
+        title: "Error",
+        message: error.toString()
+      })
     }
   }
 
   async function enableUart(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
-      await showModal("Please Wait", "Enabling UART", true)
+      await showModal({
+        title: "Please Wait",
+        message: "Enabling UART",
+        preventClose: true
+      })
       await puck.enableUart()
       await disconnectPuck(e)
       await hideModal()
     } catch (error) {
-      await showModal("Error", error)
+      await showModal({
+        title: "Error",
+        message: error.toString()
+      })
     }
   }
 
   async function changeName(e: Event | JQuery.Event) {
     e.preventDefault()
     try {
-      await showModal("Please Wait", "Reading puck name", true)
+      await showModal({
+        title: "Please Wait",
+        message: "Reading puck name",
+        preventClose: true
+      })
       const currentName = await puck.getName()
       const newName = prompt("Enter a name", currentName)
 
       if (newName != null) {
-        await showModal("Please Wait", "Setting puck name", true)
+        await showModal({
+          title: "Please Wait",
+          message: "Setting puck name",
+          preventClose: true
+        })
         await puck.setName(newName)
       }
 
       await hideModal()
     } catch (error) {
-      await showModal("Error", error)
+      await showModal({
+        title: "Error",
+        message: error.toString()
+      })
     }
   }
 
   async function uploadScript(e: Event | JQuery.Event) {
     try {
       await bluetoothOrError()
-      await showModal("Please Wait", "Connecting to puck", true)
+      await showModal({
+        title: "Please Wait",
+        message: "Connecting to puck",
+        preventClose: true
+      })
       await EspruinoHelper.open()
 
       const ver = await EspruinoHelper.getNtagVersion()
@@ -199,13 +277,34 @@ $(() => {
         throw new Error("You must flash the custom firmware prior to uploading the script.")
       }
 
-      await showModal("Uploading", "Uploading script file, please wait.")
-      await EspruinoHelper.writeCode()
+      const modalResult = await showModal({
+        title: "Save to Flash?",
+        message: `Do you want to save written tag data to the flash storage of the puck?\n\nIf this feature is not enabled, the tags stored on the puck will be lost when the battery dies or if it is removed.\n\nThis may reduce the life of the puck due to the additional writes to the flash storage.`.replace(/\n/g, "<br />"),
+        htmlEscapeBody: false,
+        buttons: ModalButtonTypes.YesNo,
+        dialog: true,
+        preventClose: true
+      })
+
+      await showModal({
+        title: "Please Wait",
+        message: "Uploading script file, please wait.",
+        preventClose: true
+      })
+
+      await EspruinoHelper.writeCode({
+        saveToFlash: modalResult === ModalResult.ButtonYes
+      })
+
       EspruinoHelper.close()
       await hideModal()
     } catch (error) {
       EspruinoHelper.close()
-      await showModal("Error", error)
+
+      await showModal({
+        title: "Error",
+        message: error.toString()
+      })
     }
   }
 
@@ -228,9 +327,16 @@ $(() => {
 
           if (modalShown === false || event.final) {
             modalShown = true
-            await showModal("Updating Firmware", previousMessage, event.final !== true)
+            await showModal({
+              title: "Updating Firmware",
+              message: previousMessage,
+              preventClose: event.final !== true
+            })
           } else {
-            setModal("Updating Firmware", previousMessage)
+            setModal({
+              title: "Updating Firmware",
+              message: previousMessage
+            })
           }
         }
 
@@ -239,7 +345,10 @@ $(() => {
         }
 
         async function progress(event: SecureDfuUpdateProgress) {
-          setModal("Updating Firmware", `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`)
+          setModal({
+            title: "Updating Firmware",
+            message: `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`
+          })
         }
 
         const dfu = new SecureDfuUpdate(status, log, progress)
@@ -247,9 +356,15 @@ $(() => {
         await dfu.update()
       } catch (error) {
         if (modalShown === false || canClose !== true) {
-          await showModal("Error", error)
+          await showModal({
+            title: "Error",
+            message: error.toString()
+          })
         } else {
-          setModal("Error", error)
+          setModal({
+            title: "Error",
+            message: error.toString()
+          })
         }
       }
     }
