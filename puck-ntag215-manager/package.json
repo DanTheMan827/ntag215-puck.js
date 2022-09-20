@@ -37,7 +37,7 @@
     "escodegen": "^1.8.0",
     "esmangle": "^1.0.1",
     "espruino": "^0.1.45",
-    "espruino-loader": "^1.2.2",
+    "espruino-loader": "^1.2.3",
     "file-loader": "^6.2.0",
     "html-webpack-plugin": "^4.5.2",
     "jquery": "^3.6.1",
