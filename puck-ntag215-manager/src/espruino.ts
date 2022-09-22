@@ -120,7 +120,7 @@ export async function getNtagVersion(): Promise<SemVer> {
 export function getCode(options: GetCodeOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const { saveToFlash = false } = options
-    let code = $("#code").text()
+    let code = $("#code").val()
 
     code = code.replace(
       /(const SAVE_TO_FLASH = )(true|false);/,
