@@ -71,7 +71,6 @@ function getTagInfo(slot) {
 }
 
 function changeTag(slot, noDelay) {
-  "changeTag";
   if (changeTagTimeout) {
     _clearTimeout(changeTagTimeout);
     changeTagTimeout = null;
