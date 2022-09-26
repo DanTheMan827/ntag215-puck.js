@@ -27,9 +27,6 @@ jobs:
 
       - name: Build web app
         run: |
-          REPOPATH="`pwd`"
-          mkdir -p /tmp
-          cp -LR puck-ntag215-manager /tmp/builder
-          cd /tmp/builder
+          cd puck-ntag215-manager
           npm install --no-optional
           npm run build
