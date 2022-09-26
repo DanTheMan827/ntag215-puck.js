@@ -4,7 +4,7 @@
   "private": true,
   "scripts": {
     "start": "node ./bin/www",
-    "build": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=production && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist && cpy \"./static_files/*\" ./dist && cpy \"./static_files/img/*\" ./dist/img",
+    "build": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=production && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist && cpy \"./static_files/*\" ./dist && cpy \"./static_files/img/*\" ./dist/img && cpy \"./src/firmware/*\" ./dist/firmware",
     "build-dev": "del-cli ./node_modules/.cache/dist-temp && webpack --mode=development && del-cli ./dist && move-cli ./node_modules/.cache/dist-temp ./dist && cpy  \"./static_files/*\" ./dist && cpy \"./static_files/img/*\" ./dist/img",
     "build-watch": "del-cli ./node_modules/.cache/dist-temp && del-cli ./dist && mkdir dist && cpy  \"./static_files/*\" ./dist && webpack --mode=development --watch"
   },

@@ -120,12 +120,22 @@ export async function getNtagVersion(): Promise<SemVer> {
   }
 }
 
+export async function getBoard(): Promise<string> {
+  if (!isConnected()) {
+    throw new Error("Device not connected")
+  }
+
+  return JSON.parse(await executeExpression("process.env.BOARD"))
+}
+
+
+
 export function getCode(options: GetCodeOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const {
       saveToFlash = false, board = undefined
     } = options
-    let code = $("#code").val()
+    let code = $("#code").val() as string
 
     code = code.replace(
       /(const SAVE_TO_FLASH = )(true|false);/,

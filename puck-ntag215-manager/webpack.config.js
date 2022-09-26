@@ -66,6 +66,14 @@ module.exports = (env, argv) => {
             esModule: false,
             outputPath: 'assets/'
           }
+        },
+        {
+          test: /\.(zip)$/,
+          loader: 'firmware-loader',
+          options: {
+            root: path.join(__dirname, "src"),
+            download: (argv.mode || "development") !== "development"
+          }
         }
       ]
     },
@@ -123,6 +131,11 @@ module.exports = (env, argv) => {
       extensions: [
         '.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'
       ]
+    },
+    resolveLoader: {
+      alias: {
+        'firmware-loader': path.join(__dirname, "src", 'firmware-loader.js')
+      }
     },
     output: {
       path: internalPath,

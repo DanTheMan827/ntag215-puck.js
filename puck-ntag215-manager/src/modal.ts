@@ -1,4 +1,5 @@
 const template: (options?: ModalTemplateOptions) => string = require("./templates/modal.pug")
+const $ = require("jquery") as JQueryStatic
 
 let body: JQuery<HTMLElement>
 let alertModal: JQuery<HTMLElement>
@@ -32,7 +33,11 @@ export interface ModalTitleOptions {
 }
 
 export interface ModalMessageOptions {
-  message?: string
+  message?: string | JQuery<HTMLElement>
+
+  /**
+   * If `message` is a JQuery object, this will always be false.
+   */
   htmlEscapeBody?: boolean
 }
 
@@ -40,7 +45,7 @@ export interface ModalSetOptions extends ModalTitleOptions, ModalMessageOptions 
 
 export interface ModalShowOptions extends ModalTitleOptions, ModalMessageOptions {
   title: string
-  message: string
+  message: string | JQuery<HTMLElement>
   preventClose?: boolean
 
   /**
@@ -171,11 +176,16 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
     message,
     preventClose = false,
     htmlEscapeTitle = true,
-    htmlEscapeBody = true,
     dialog = false,
   } = options
-
+  let {
+    htmlEscapeBody = true
+  } = options
   const buttons = options.buttons || (preventClose ? ModalButtonTypes.None : ModalButtonTypes.Close)
+
+  if (options.message instanceof $) {
+    htmlEscapeBody = false
+  }
 
   if (modalShowing) {
     await hideModal()
@@ -243,7 +253,7 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
   modalHeader = newModal.find(".modal-header")
   modalFooter = newModal.find(".modal-footer")
   modalTitle = newModal.find(".modal-title")
-  modalBody = newModal.find(".modal-body > p")
+  modalBody = newModal.find(".modal-body")
   modalClose = newModal.find(".close.close-modal")
   newModal.find(".close-modal[data-close-value]").on("click", modalButtonClick)
   newModal.on("click", modalBackgroundClick)
@@ -263,9 +273,13 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
   }
 
   if (htmlEscapeBody) {
-    modalBody.text(message)
+    modalBody.empty().append($("<p />").text(message as string))
   } else {
-    modalBody.html(message)
+    if (message instanceof $) {
+      modalBody.empty().append(message)
+    } else {
+      modalBody.empty().html($("<p/>").text(message as any).html())
+    }
   }
 
   if (preventClose) {
@@ -313,15 +327,19 @@ export function setTitle(title: string, htmlEscape = true) {
   }
 }
 
-export function setBody(title: string, htmlEscape = true) {
+export function setBody(body: string | JQuery<HTMLElement>, htmlEscape = true) {
   if (!modalBody) {
     throw new Error("Modal is not presenting.")
   }
 
-  if (htmlEscape) {
-    modalBody.text(title)
+  if (htmlEscape && !(body instanceof $)) {
+    modalBody.empty().append($("<p />").text(body as string))
   } else {
-    modalBody.html(title)
+    if (body instanceof $) {
+      modalBody.empty().append(body)
+    } else {
+      modalBody.empty().html($("<p/>").text(body as any).html())
+    }
   }
 }
 

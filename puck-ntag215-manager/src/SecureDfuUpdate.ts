@@ -3,8 +3,15 @@ import { SecureDfuPackage } from "./SecureDfuPackage"
 
 const CRC32 = require("crc-32")
 
-// @ts-ignore:next-line
-const firmware: Promise<{ default: ArrayBuffer }> = import("arraybuffer-loader!../espruino_2v15.1_puckjs.zip")
+export enum EspruinoBoards {
+  PuckJS = "PUCKJS",
+  PuckJSMinimal = "PUCKJS_MINIMAL",
+  PuckJSLite = "PUCKJS_LITE",
+  PixlJS = "PIXLJS",
+  BangleJS = "BANGLEJS",
+  BangleJS2 = "BANGLEJS2",
+  MDBT42Q = "MDBT42Q"
+}
 
 export interface SecureDfuUpdateProgress {
   object: string
@@ -15,6 +22,30 @@ export interface SecureDfuUpdateProgress {
 export interface SecureDfuUpdateMessage {
   message: string
   final?: boolean
+}
+
+function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
+  switch (board) {
+    case EspruinoBoards.PuckJS:
+      return require("./firmware/espruino_2v15.767_puckjs.zip?./firmware/espruino_2v15.767_puckjs.zip")
+
+    case EspruinoBoards.PuckJSMinimal:
+      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip?./firmware/espruino_2v15.767_puckjs_minimal.zip")
+
+    case EspruinoBoards.PuckJSLite:
+      return require("./firmware/espruino_2v15.767_puckjs_lite.zip?./firmware/espruino_2v15.767_puckjs_lite.zip")
+
+    case EspruinoBoards.PixlJS:
+      return require("./firmware/espruino_2v15.767_pixljs.zip?./firmware/espruino_2v15.767_pixljs.zip")
+
+    case EspruinoBoards.BangleJS:
+      return require("./firmware/espruino_2v15.767_banglejs.zip?./firmware/espruino_2v15.767_banglejs.zip")
+
+    case EspruinoBoards.PuckJS:
+      return require("./firmware/espruino_2v15.767_banglejs2.zip?./firmware/espruino_2v15.767_banglejs2.zip")
+
+    default: throw new Error(`Invalid board: ${board}`)
+  }
 }
 
 export class SecureDfuUpdate {
@@ -36,12 +67,13 @@ export class SecureDfuUpdate {
     this.dfu.addEventListener(SecureDfu.EVENT_PROGRESS, progressCallback)
   }
 
-  private async loadPackage(): Promise<SecureDfuPackage> {
-    return new SecureDfuPackage((await firmware).default)
+  private async loadPackage(board: EspruinoBoards): Promise<SecureDfuPackage> {
+    return new SecureDfuPackage(await getFirmware(board))
   }
 
-  async update() {
-    const updatePackage = await this.loadPackage()
+  async update(board: EspruinoBoards) {
+    await this.statusCallback({ message: `Loading firmware: ${board}`})
+    const updatePackage = await this.loadPackage(board)
     const baseImage = await updatePackage.getBaseImage()
     const appImage = await updatePackage.getAppImage()
 
@@ -57,8 +89,4 @@ export class SecureDfuUpdate {
 
     await this.statusCallback({ message: "Update complete!", final: true })
   }
-}
-
-export async function waitForFirmware() {
-  await firmware
 }

@@ -5,8 +5,13 @@ import { Puck } from "./puck"
 import { showModal, hideModal, setModal, ModalShowOptions, ModalButtonTypes, ModalResult } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
 import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
-import { SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
+import { EspruinoBoards, SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 import * as EspruinoHelper from "./espruino"
+import { ModalMessageType, modalMessages } from "./modalMessages"
+
+const toArrayBuffer = require("arraybuffer-loader/lib/to-array-buffer.js")
+const slotTemplate = require("./templates/slot.pug")
+const boardTemplate = require("./templates/board-selector.pug")
 
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
@@ -15,13 +20,7 @@ $(() => {
   const mainContainer = $("#mainContainer")
   const slotsContainer = $("#slotsContainer")
   const scriptTextArea = $("#readme textarea")
-  const slotTemplate = require("./templates/slot.pug")
   const firmwareName = $("#code").text().match(/const FIRMWARE_NAME = \"([^"]+)\";/)[1]
-  let updateFirmware: (e: Event | JQuery.Event, throwError?: boolean) => Promise<void> | undefined
-  let firmwareUpdateResolve: (value: any) => void
-  const firmwareUpdateLoaded = new Promise((resolve, reject) => {
-    firmwareUpdateResolve = resolve
-  })
 
   if (supportsBluetooth !== true) {
     showModal({
@@ -41,7 +40,8 @@ $(() => {
         readFile,
         saveData,
         setModal,
-        showModal
+        showModal,
+        hardwareChooser
       }
     }
   }
@@ -266,6 +266,48 @@ $(() => {
     }
   }
 
+  async function hardwareChooser(): Promise<EspruinoBoards> {
+    const boards = [
+      {
+        name: "Bangle.js",
+        value: EspruinoBoards.BangleJS
+      },
+      {
+        name: "Bangle.js 2",
+        value: EspruinoBoards.BangleJS2
+      },
+      {
+        name: "Pixl.js",
+        value: EspruinoBoards.PixlJS
+      },
+      {
+        name: "Puck.js",
+        value: EspruinoBoards.PuckJSMinimal,
+        selected: true
+      },
+      {
+        name: "Puck.js Lite",
+        value: EspruinoBoards.PuckJSLite
+      }
+    ]
+
+    const html = $(boardTemplate({ boards }))
+    const selector = html.find("select")
+
+    const result = await showModal({
+      title: "Select your board",
+      message: html,
+      dialog: true,
+      buttons: ModalButtonTypes.Next
+    })
+
+    if (result === ModalResult.ButtonNext) {
+      return selector.val() as EspruinoBoards
+    }
+
+    throw new Error("User cancelled board selection.")
+  }
+
   async function uploadScript(e: Event | JQuery.Event) {
     try {
       await bluetoothOrError()
@@ -276,6 +318,7 @@ $(() => {
       })
       await EspruinoHelper.open()
 
+      const board = await EspruinoHelper.getBoard()
       const ver = await EspruinoHelper.getNtagVersion()
 
       if (!(ver.major === 1 && ver.minor >= 0)) {
@@ -293,8 +336,7 @@ $(() => {
             message: "Downloading firmware",
             preventClose: true
           })
-          await firmwareUpdateLoaded
-          await updateFirmware(e, true)
+          await updateFirmware(e, true, board)
         } else {
           return
         }
@@ -302,7 +344,7 @@ $(() => {
 
       const modalResult = await showModal({
         title: "Save to Flash?",
-        message: `Do you want to save written tag data to the flash storage of the puck?\n\nIf this feature is not enabled, the tags stored on the puck will be lost when the battery dies or if it is removed.\n\nThis may reduce the life of the puck due to the additional writes to the flash storage.`.replace(/\n/g, "<br />"),
+        message: modalMessages(ModalMessageType.SaveToFlash),
         htmlEscapeBody: false,
         buttons: ModalButtonTypes.YesNo,
         dialog: true,
@@ -317,7 +359,7 @@ $(() => {
 
       await EspruinoHelper.writeCode({
         saveToFlash: modalResult === ModalResult.ButtonYes,
-        board: JSON.parse(await EspruinoHelper.executeExpression("process.env.BOARD"))
+        board
       })
 
       EspruinoHelper.close()
@@ -332,92 +374,81 @@ $(() => {
     }
   }
 
-  (async () => {
-    // load the firmware updater
-    const { SecureDfuUpdate, waitForFirmware } = await import("./SecureDfuUpdate")
-    await waitForFirmware()
+  async function updateFirmware(e: Event | JQuery.Event, throwError?: boolean, board?: EspruinoBoards) {
+    let modalShown = false
+    let canClose = true
 
-    updateFirmware = async (e: Event | JQuery.Event, throwError?: boolean) => {
-      let modalShown = false
-      let canClose = true;
-      try {
-        await bluetoothOrError()
+    try {
+      await bluetoothOrError()
 
-        await showModal({
-          title: "Instructions",
-          message: "To enter DFU mode, please remove the battery from your Puck.js and re-insert it while holding the power button until the LED indicator turns green.",
-          dialog: true,
-          preventClose: true,
-          buttons: ModalButtonTypes.Next
-        })
+      await showModal({
+        title: "Instructions",
+        message: modalMessages(ModalMessageType.DfuInstructions),
+        dialog: true,
+        preventClose: true,
+        buttons: ModalButtonTypes.Next
+      })
 
-        let previousMessage: string
+      let previousMessage: string
 
-        async function status(event: SecureDfuUpdateMessage) {
-          previousMessage = event.message
-          canClose = event.final
+      async function status(event: SecureDfuUpdateMessage) {
+        previousMessage = event.message
+        canClose = event.final
 
-          if (modalShown === false || event.final) {
-            modalShown = true
-            await showModal({
-              title: "Updating Firmware",
-              message: previousMessage,
-              preventClose: event.final !== true
-            })
-          } else {
-            setModal({
-              title: "Updating Firmware",
-              message: previousMessage
-            })
-          }
-        }
-
-        async function log(event: SecureDfuUpdateMessage) {
-          console.log(event)
-        }
-
-        async function progress(event: SecureDfuUpdateProgress) {
-          setModal({
-            title: "Updating Firmware",
-            message: `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`
-          })
-        }
-
-        const dfu = new SecureDfuUpdate(status, log, progress)
-
-        await dfu.update()
-      } catch (error) {
-        if (throwError) {
-          throw error
-        }
-
-        if (modalShown === false || canClose !== true) {
+        if (modalShown === false || event.final) {
+          modalShown = true
           await showModal({
-            title: "Error",
-            message: error.toString()
+            title: "Updating Firmware",
+            message: previousMessage,
+            preventClose: event.final !== true
           })
         } else {
           setModal({
-            title: "Error",
-            message: error.toString()
+            title: "Updating Firmware",
+            message: previousMessage
           })
         }
       }
-    }
 
-    $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
+      async function log(event: SecureDfuUpdateMessage) {
+        console.log(event)
+      }
 
-    if (firmwareUpdateResolve) {
-      firmwareUpdateResolve(true)
-      firmwareUpdateResolve = null
+      async function progress(event: SecureDfuUpdateProgress) {
+        setModal({
+          title: "Updating Firmware",
+          message: `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`
+        })
+      }
+
+      const dfu = new SecureDfuUpdate(status, log, progress)
+
+      await dfu.update(board || await hardwareChooser())
+    } catch (error) {
+      if (throwError) {
+        throw error
+      }
+
+      if (modalShown === false || canClose !== true) {
+        await showModal({
+          title: "Error",
+          message: error.toString()
+        })
+      } else {
+        setModal({
+          title: "Error",
+          message: error.toString()
+        })
+      }
     }
-  })()
+  }
 
   $("#puckConnect").on("click", connectPuck).prop("disabled", false)
   $("#puckDisconnect").on("click", disconnectPuck).prop("disabled", false)
   $("#puckUart").on("click", enableUart).prop("disabled", false)
   $("#puckName").on("click", changeName).prop("disabled", false)
   $("#uploadScript").on("click", uploadScript).prop("disabled", false)
+  $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
   $("#readme textarea, #readme a[href$='ntag215.js']").on("click", (e) => {
     e.preventDefault()
     scriptTextArea.trigger("focus").trigger("select")
