@@ -72,13 +72,14 @@ export class SecureDfuUpdate {
   }
 
   async update(board: EspruinoBoards) {
+    const updatePackage = this.loadPackage(board)
+
     await this.statusCallback({ message: "Connecting to device" })
     const device = await this.dfu.requestDevice(false, null)
 
     await this.statusCallback({ message: `Loading firmware: ${board}`})
-    const updatePackage = await this.loadPackage(board)
-    const baseImage = await updatePackage.getBaseImage()
-    const appImage = await updatePackage.getAppImage()
+    const baseImage = await (await updatePackage).getBaseImage()
+    const appImage = await (await updatePackage).getAppImage()
 
     for (const image of [baseImage, appImage]) {
       if (image) {
