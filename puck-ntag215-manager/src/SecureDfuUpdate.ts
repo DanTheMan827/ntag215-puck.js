@@ -26,23 +26,23 @@ export interface SecureDfuUpdateMessage {
 
 function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
   switch (board) {
+    case EspruinoBoards.BangleJS:
+      return require("./firmware/espruino_2v15.767_banglejs.zip")
+
+    case EspruinoBoards.BangleJS2:
+      return require("./firmware/espruino_2v15.767_banglejs2.zip")
+      
     case EspruinoBoards.PuckJS:
       return require("./firmware/espruino_2v15.767_puckjs.zip")
-
-    case EspruinoBoards.PuckJSMinimal:
-      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
 
     case EspruinoBoards.PuckJSLite:
       return require("./firmware/espruino_2v15.767_puckjs_lite.zip")
 
+    case EspruinoBoards.PuckJSMinimal:
+      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
+
     case EspruinoBoards.PixlJS:
       return require("./firmware/espruino_2v15.767_pixljs.zip")
-
-    case EspruinoBoards.BangleJS:
-      return require("./firmware/espruino_2v15.767_banglejs.zip")
-
-    case EspruinoBoards.PuckJS:
-      return require("./firmware/espruino_2v15.767_banglejs2.zip")
 
     default: throw new Error(`Invalid board: ${board}`)
   }
