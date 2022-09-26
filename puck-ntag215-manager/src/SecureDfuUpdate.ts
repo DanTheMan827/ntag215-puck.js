@@ -27,22 +27,22 @@ export interface SecureDfuUpdateMessage {
 function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
   switch (board) {
     case EspruinoBoards.PuckJS:
-      return require("./firmware/espruino_2v15.767_puckjs.zip?./firmware/espruino_2v15.767_puckjs.zip")
+      return require("./firmware/espruino_2v15.767_puckjs.zip")
 
     case EspruinoBoards.PuckJSMinimal:
-      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip?./firmware/espruino_2v15.767_puckjs_minimal.zip")
+      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
 
     case EspruinoBoards.PuckJSLite:
-      return require("./firmware/espruino_2v15.767_puckjs_lite.zip?./firmware/espruino_2v15.767_puckjs_lite.zip")
+      return require("./firmware/espruino_2v15.767_puckjs_lite.zip")
 
     case EspruinoBoards.PixlJS:
-      return require("./firmware/espruino_2v15.767_pixljs.zip?./firmware/espruino_2v15.767_pixljs.zip")
+      return require("./firmware/espruino_2v15.767_pixljs.zip")
 
     case EspruinoBoards.BangleJS:
-      return require("./firmware/espruino_2v15.767_banglejs.zip?./firmware/espruino_2v15.767_banglejs.zip")
+      return require("./firmware/espruino_2v15.767_banglejs.zip")
 
     case EspruinoBoards.PuckJS:
-      return require("./firmware/espruino_2v15.767_banglejs2.zip?./firmware/espruino_2v15.767_banglejs2.zip")
+      return require("./firmware/espruino_2v15.767_banglejs2.zip")
 
     default: throw new Error(`Invalid board: ${board}`)
   }
