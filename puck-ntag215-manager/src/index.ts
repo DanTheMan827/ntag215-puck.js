@@ -284,10 +284,6 @@ $(() => {
         name: "Puck.js",
         value: EspruinoBoards.PuckJSMinimal,
         selected: true
-      },
-      {
-        name: "Puck.js Lite",
-        value: EspruinoBoards.PuckJSLite
       }
     ]
 
