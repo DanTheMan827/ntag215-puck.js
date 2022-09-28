@@ -6,7 +6,6 @@ const CRC32 = require("crc-32")
 export enum EspruinoBoards {
   PuckJS = "PUCKJS",
   PuckJSMinimal = "PUCKJS_MINIMAL",
-  PuckJSLite = "PUCKJS_LITE",
   PixlJS = "PIXLJS",
   BangleJS = "BANGLEJS",
   BangleJS2 = "BANGLEJS2",
@@ -34,9 +33,6 @@ function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
       
     case EspruinoBoards.PuckJS:
       return require("./firmware/espruino_2v15.767_puckjs.zip")
-
-    case EspruinoBoards.PuckJSLite:
-      return require("./firmware/espruino_2v15.767_puckjs_lite.zip")
 
     case EspruinoBoards.PuckJSMinimal:
       return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
