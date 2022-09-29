@@ -21,8 +21,8 @@ html
 
       #readme
         include:markdown-it ../../readme.md
-        textarea#code(readonly="readonly")
-          include:escape-html ../../ntag215.js
+        pre#code.hljs
+          include:highlight ../../ntag215.js
 
       #slotsContainer
 

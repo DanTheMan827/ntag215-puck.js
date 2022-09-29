@@ -8,6 +8,7 @@ import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
 import { EspruinoBoards, SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 import * as EspruinoHelper from "./espruino"
 import { ModalMessageType, modalMessages } from "./modalMessages"
+import { selectText, selectThis } from "./selectText"
 
 const toArrayBuffer = require("arraybuffer-loader/lib/to-array-buffer.js")
 const slotTemplate = require("./templates/slot.pug")
@@ -19,7 +20,7 @@ const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
 $(() => {
   const mainContainer = $("#mainContainer")
   const slotsContainer = $("#slotsContainer")
-  const scriptTextArea = $("#readme textarea")
+  const scriptTextArea = $("#code")
   const firmwareName = $("#code").text().match(/const FIRMWARE_NAME = \"([^"]+)\";/)[1]
 
   if (supportsBluetooth !== true) {
@@ -332,7 +333,7 @@ $(() => {
             message: "Downloading firmware",
             preventClose: true
           })
-          await updateFirmware(e, true, board)
+          await updateFirmware(e, true, board as EspruinoBoards)
         } else {
           return
         }
@@ -445,8 +446,9 @@ $(() => {
   $("#puckName").on("click", changeName).prop("disabled", false)
   $("#uploadScript").on("click", uploadScript).prop("disabled", false)
   $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
-  $("#readme textarea, #readme a[href$='ntag215.js']").on("click", (e) => {
+  $("#code, #readme a[href$='ntag215.js']").on("click", (e) => {
     e.preventDefault()
-    scriptTextArea.trigger("focus").trigger("select")
+
+    selectText(scriptTextArea[0])
   })
 })

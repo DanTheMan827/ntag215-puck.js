@@ -135,7 +135,7 @@ export function getCode(options: GetCodeOptions = {}): Promise<string> {
     const {
       saveToFlash = false, board = undefined
     } = options
-    let code = $("#code").val() as string
+    let code = $("#code").text() as string
 
     code = code.replace(
       /(const SAVE_TO_FLASH = )(true|false);/,
