@@ -36,13 +36,14 @@ $(() => {
       ...(anyWindow.debug || { }),
       ...{
         EspruinoHelper,
+        hardwareChooser,
         hideModal,
+        modalMessages,
         puck,
         readFile,
         saveData,
         setModal,
         showModal,
-        hardwareChooser
       }
     }
   }
@@ -414,7 +415,11 @@ $(() => {
       async function progress(event: SecureDfuUpdateProgress) {
         setModal({
           title: "Updating Firmware",
-          message: `${previousMessage}\n\n${event.currentBytes} / ${event.totalBytes} bytes`
+          message: modalMessages(ModalMessageType.FirmwareUpdate, {
+            message: previousMessage,
+            currentBytes: event.currentBytes,
+            totalBytes: event.totalBytes
+          })
         })
       }
 

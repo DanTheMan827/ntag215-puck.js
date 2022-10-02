@@ -30,7 +30,7 @@ function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
 
     case EspruinoBoards.BangleJS2:
       return require("./firmware/espruino_2v15.767_banglejs2.zip")
-      
+
     case EspruinoBoards.PuckJS:
       return require("./firmware/espruino_2v15.767_puckjs.zip")
 

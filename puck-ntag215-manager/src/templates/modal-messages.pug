@@ -6,3 +6,13 @@ case kind
 
   when "dfu-instructions"
     p To enter DFU mode, please remove the battery from your Puck.js and re-insert it while holding the power button until the LED indicator turns green.
+
+  when "firmware-update"
+    p=message
+    p
+      =currentBytes
+      =" / "
+      =totalBytes
+      =" bytes"
+    .progress(style="margin-bottom: 0;")
+      .progress-bar.progress-bar-info(style=`width: ${(currentBytes / totalBytes) * 100}%`)
