@@ -1,6 +1,5 @@
 - projectUrl  = "https://github.com/DanTheMan827/ntag215-puck.js"
 - gitCommit = require('child_process').execSync('git rev-parse HEAD').toString().trim()
-- gitDirty = require('child_process').execSync('git diff-index --quiet HEAD -- || echo dirty').toString().trim() == "dirty"
 include ./mixins/_githubCorner.pug
 
 html
@@ -35,10 +34,9 @@ html
             ="Commit: "
             a(href=`${projectUrl}/commit/${gitCommit}`)
               =gitCommit.substr(0, 7)
-              =(gitDirty ? "-dirty" : "")
 
       #slotsContainer
-      //include ./adsense.pug
+      //-include ./adsense.pug
     include ./kofi.pug
 
     .editor--terminal
