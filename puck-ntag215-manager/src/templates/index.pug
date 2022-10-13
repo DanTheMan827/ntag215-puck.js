@@ -1,3 +1,6 @@
+- projectUrl  = "https://github.com/DanTheMan827/ntag215-puck.js"
+- gitCommit = require('child_process').execSync('git rev-parse HEAD').toString().trim()
+- gitDirty = require('child_process').execSync('git diff-index --quiet HEAD -- || echo dirty').toString().trim() == "dirty"
 include ./mixins/_githubCorner.pug
 
 html
@@ -10,7 +13,7 @@ html
     link(rel="apple-touch-icon", href="./apple-touch-icon.png")
     include ./analytics.pug
   body
-    +githubCorner("https://github.com/DanTheMan827/ntag215-puck.js", "#fff", "#151513")
+    +githubCorner(projectUrl , "#fff", "#151513")
     .container#mainContainer
       button.btn.btn-default.btn-lg.btn-block.well#puckConnect(disabled="disabled") Connect to Puck
       button.btn.btn-default.btn-lg.btn-block.well#updateFirmware(disabled="disabled") Update Firmware (DFU Mode)
@@ -22,10 +25,19 @@ html
       #readme
         include:markdown-it ../../readme.md
         pre#code.hljs
-          include:highlight(lang="javascript") ../../ntag215.js
+          include:highlight(options={ language:"javascript" }) ../../ntag215.js
+
+        small#footer
+          p
+            ="Page built on "
+            =new Date().toGMTString()
+            =" | "
+            ="Commit: "
+            a(href=`${projectUrl}/commit/${gitCommit}`)
+              =gitCommit.substr(0, 7)
+              =(gitDirty ? "-dirty" : "")
 
       #slotsContainer
-
       //include ./adsense.pug
     include ./kofi.pug
 
