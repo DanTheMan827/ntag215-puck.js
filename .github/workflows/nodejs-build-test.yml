@@ -19,12 +19,6 @@ jobs:
         with:
           node-version: 16.x
 
-      - name: Set git identity
-        run: |
-          git fetch --all
-          git config --global user.name 'DanTheMan827 (Automated)'
-          git config --global user.email '790119+DanTheMan827@users.noreply.github.com'
-
       - name: Build web app
         run: |
           cd puck-ntag215-manager
