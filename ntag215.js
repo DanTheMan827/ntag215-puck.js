@@ -1,23 +1,77 @@
-// Constants
-const SAVE_TO_FLASH = false; // Set this to true if you want to save the tags to flash memory.
+// #region Constants
+/**
+ * Set this to true if you want to save the tags to flash memory.
+ */
+const SAVE_TO_FLASH = false;
+
+/**
+ * How long in miliseconds during power on in which you can press the button to enable UART.
+ */
+ const UART_WINDOW = 5000;
+
+ /**
+  * How many miliseconds you have to hold the button to power on the puck
+  */
+ const POWER_ON_TIME = 5000;
+
+ /**
+  * How many miliseconds you have to hold the button to power off the puck
+  */
+ const POWER_OFF_TIME = 5000;
+
+/**
+ * The name of the script.
+ */
 const FIRMWARE_NAME = "dtm-1.0.1";
+
+/**
+ * The file name in flash used to store the bluetooth device name.
+ */
 const PUCK_NAME_FILE = "puck-name";
+
+/**
+ * The board that the script is running on.  Used to determine various features.
+ * @type {string}
+ */
 const BOARD = process.env.BOARD;
-const UART_WINDOW = 5000; // How long in miliseconds during power on in which you can press the button to enable UART.
-const POWER_ON_TIME = 5000; // How many miliseconds you have to hold the button to power on the puck
-const POWER_OFF_TIME = 5000 ;// How many miliseconds you have to hold the button to power off the puck
+// #endregion
 
-// Bluetooth GUIDs
+// #region Bluetooth GUIDs
+/**
+ * The Bluetooth service ID.
+ */
 const BLE_SERVICE_ID = "78290001-d52e-473f-a9f4-f03da7c67dd1";
+
+/**
+ * The command characteristic ID.
+ */
 const BLE_COMMAND_CHARACTERISTIC = "78290002-d52e-473f-a9f4-f03da7c67dd1";
+
+/**
+ * The return characteristic ID.
+ */
 const BLE_RETURN_CHARACTERISTIC = "78290003-d52e-473f-a9f4-f03da7c67dd1";
+
+/**
+ * The bluetooth name characteristic ID.
+ */
 const BLE_NAME_CHARACTERISTIC = "78290004-d52e-473f-a9f4-f03da7c67dd1";
+
+/**
+ * The firmware name characteristic ID.
+ * @see {@link FIRMWARE_NAME}
+ */
 const BLE_FIRMWARE_CHARACTERISTIC = "78290005-d52e-473f-a9f4-f03da7c67dd1";
+// #endregion
 
-// Modules
+// #region Modules
+/**
+ * The `Storage` module.
+ */
 const storage = require("Storage");
+// #endregion
 
-// Mangle Helper
+// #region Mangle Helper
 const _BTN = this.BTN;
 const _LED1 = this.LED1;
 const _LED2 = this.LED2;
@@ -33,25 +87,58 @@ const _MathRound = _Math.round;
 const _MathRandom = _Math.random;
 const _Rising = "rising";
 const _Falling = "falling";
+// #endregion
 
-// Features
+// #region Features
+/**
+ * Whether to enable code that changes LEDs
+ */
 const ENABLE_LEDS = BOARD == "PUCKJS";
+// #endregion
 
-// Variables
+// #region Variables
+/**
+ * The active tag index.
+ */
 var currentTag = 0;
-var changeTagTimeout = null;
-var enableUart = false;
-var txBuffer = new Uint8Array(32);
-var tags = [];
 
+/**
+ * Contains the timeout between changing tags.
+ */
+var changeTagTimeout = null;
+
+/**
+ * If UART should be enabled during {@link initialize}, set by {@link setUartWatch}.
+ */
+var enableUart = false;
+
+/**
+ * A buffer used by the NTAG215 emulator.
+ */
+var txBuffer = new Uint8Array(32);
+
+/**
+ * An array of the in-memory tags, unused if {@link SAVE_TO_FLASH} is true
+ */
+var tags = [];
+// #endregion
+
+// #region Tag initialization
 while (tags.length < 50 && process.memory().free > 1024) {
   tags.push(new Uint8Array(572));
 }
 
 _consoleLog("Tag count: " + tags.length);
+// #endregion
 
+/**
+ * This function will repair a damaged UID for an NTAG215 while ignoring everything else.
+ * @returns {boolean} - Whether anything was changed with the tag data.
+ */
 function fixUid() {
-  if (tags[currentTag][0] == 0x04 && tags[currentTag][9] == 0x48 && _NTAG215.fixUid()) {
+  const tag = getTag(currentTag);
+
+  if (tag[0] == 0x04 && tag[9] == 0x48 && _NTAG215.fixUid()) {
     _consoleLog("Fixed UID");
     return true;
   }
@@ -59,18 +146,39 @@ function fixUid() {
   return false;
 }
 
+/**
+ * Returns a Uint8Array for the slot requested.
+ * @param {Number} slot - The requested slot.
+ * @returns {Uint8Array} - A read / write array in memory.
+ */
+function getTag(slot) {
+  return tags[slot];
+}
+
+/**
+ * This function returns a select subset of information that can be used to indentify an amiibo character and nickname.
+ * @param {number} slot - The desired slot.
+ * @returns  {Uint8Array} - A subset of tag tag from 0x00 - 0x08, 0x10 - 0x18, 0x20 - 0x34, 0x54 - 0x5C, 0x60 - 0x80
+ */
 function getTagInfo(slot) {
-  var output = Uint8Array(80);
-  output.set(tags[slot].slice(0, 8), 0);
-  output.set(tags[slot].slice(16, 24), 8);
-  output.set(tags[slot].slice(32, 52), 20);
-  output.set(tags[slot].slice(84, 92), 40);
-  output.set(tags[slot].slice(96, 128), 48);
+  const output = Uint8Array(80);
+  const tag = getTag(slot);
+
+  output.set(tag.slice(0, 8), 0);
+  output.set(tag.slice(16, 24), 8);
+  output.set(tag.slice(32, 52), 20);
+  output.set(tag.slice(84, 92), 40);
+  output.set(tag.slice(96, 128), 48);
 
   return output;
 }
 
-function changeTag(slot, noDelay) {
+/**
+ * Changes the active slot to the one chosen.
+ * @param {number} slot - The slot to change to
+ * @param {boolean} immediate - If this is falsy there will be a 200ms delay, otherwise there will be none.
+ */
+function changeTag(slot, immediate) {
   if (changeTagTimeout) {
     _clearTimeout(changeTagTimeout);
     changeTagTimeout = null;
@@ -93,22 +201,31 @@ function changeTag(slot, noDelay) {
       _LED3.write(0);
     }
 
-    _NTAG215.setTagData(tags[slot].buffer);
+    _NTAG215.setTagData(getTag(slot).buffer);
     fixUid();
     _NTAG215.nfcStart();
   }
 
-  if (noDelay) {
+  if (immediate) {
     innerChangeTag();
   } else {
     changeTagTimeout = _setTimeout(innerChangeTag, 200);
   }
 }
 
+/**
+ * This will cycle through the first 7 slots.
+ * @see - {@link changeTag} If you want to change to a specific slot.
+ */
 function cycleTags() {
   changeTag(++currentTag >= 7 ? 0 : currentTag);
 }
 
+/**
+ * Copies the input into a new `Uint8Array`
+ * @param {Uint8Array} buffer - The input `Uint8Array`
+ * @returns - A copy of the input.
+ */
 function getBufferClone(buffer) {
   if (buffer) {
     var output = new Uint8Array(buffer.length);
@@ -118,6 +235,11 @@ function getBufferClone(buffer) {
   }
 }
 
+/**
+ * Saves the tag to flash.
+ * @param {number | undefined} [slot] - The desired slot.  If not set, this will be the currently active slot.
+ * @returns
+ */
 function saveTag(slot) {
   if (slot == undefined) {
     slot = currentTag;
@@ -128,15 +250,23 @@ function saveTag(slot) {
   }
 
   _consoleLog("Saving tag " + slot);
-  storage.write("tag" + slot + ".bin", tags[slot]);
+  storage.write("tag" + slot + ".bin", getTag(slot));
 }
 
+/**
+ * Saves all tags to flash.
+ */
 function saveAllTags() {
   for (var i = 0; i < tags.length; i++) {
     saveTag(i);
   }
 }
 
+/**
+ * Part 1 of the power on sequence.
+ *
+ * This enables UART and waits for the duration set by {@link UART_WINDOW} before calling {@link initialize}
+ */
 function setUartWatch() {
   NRF.setServices({}, {
     uart: true
@@ -314,7 +444,7 @@ function initialize() {
               startIdx = evt.data[2] * 4;
               dataSize = evt.data[3] * 4;
               slot = evt.data[1] < tags.length ? evt.data[1] : currentTag;
-              sourceData = tags[slot].slice(startIdx, startIdx + dataSize);
+              sourceData = getTag(slot).slice(startIdx, startIdx + dataSize);
               //_consoleLog("Reading from slot: " + slot);
               //_consoleLog("Read from " + startIdx + " - " + (startIdx + dataSize));
               response[BLE_SERVICE_ID][BLE_RETURN_CHARACTERISTIC].value = Uint8Array(dataSize + 4);
@@ -335,7 +465,7 @@ function initialize() {
                 //_consoleLog("Write to start: " + startIdx);
                 //_consoleLog("Write size: " + dataSize);
 
-                tags[slot].set(new Uint8Array(evt.data, 3, dataSize), startIdx);
+                getTag(slot).set(new Uint8Array(evt.data, 3, dataSize), startIdx);
               }
               break;
 
@@ -433,7 +563,6 @@ if (typeof _NTAG215 !== "undefined") {
 
     if (_NTAG215.getTagWritten()) {
       if (SAVE_TO_FLASH) {
-        _consoleLog("Saving tag to flash");
         saveTag();
       }
       _NTAG215.setTagWritten(false);
@@ -441,25 +570,26 @@ if (typeof _NTAG215 !== "undefined") {
   });
 
   for (var i = 0; i < tags.length; i++) {
-    var filename = "tag" + i + ".bin";
-    var buffer = storage.readArrayBuffer(filename);
+    const filename = "tag" + i + ".bin";
+    const buffer = storage.readArrayBuffer(filename);
+    const tag = getTag(i);
 
     if (buffer) {
       _consoleLog("Loaded " + filename);
-      tags[i].set(buffer);
+      tag.set(buffer);
     } else {
-      tags[i][0] = 0x04;
-      tags[i][1] = _MathRound(_MathRandom() * 255);
-      tags[i][2] = _MathRound(_MathRandom() * 255);
-      tags[i][3] = tags[i][0] ^ tags[i][1] ^ tags[i][2] ^ 0x88;
-      tags[i][4] = _MathRound(_MathRandom() * 255);
-      tags[i][5] = _MathRound(_MathRandom() * 255);
-      tags[i][6] = _MathRound(_MathRandom() * 255);
-      tags[i][7] = _MathRound(_MathRandom() * 255);
-      tags[i][8] = tags[i][4] ^ tags[i][5] ^ tags[i][6] ^ tags[i][7];
+      tag[0] = 0x04;
+      tag[1] = _MathRound(_MathRandom() * 255);
+      tag[2] = _MathRound(_MathRandom() * 255);
+      tag[3] = tag[0] ^ tag[1] ^ tag[2] ^ 0x88;
+      tag[4] = _MathRound(_MathRandom() * 255);
+      tag[5] = _MathRound(_MathRandom() * 255);
+      tag[6] = _MathRound(_MathRandom() * 255);
+      tag[7] = _MathRound(_MathRandom() * 255);
+      tag[8] = tag[4] ^ tag[5] ^ tag[6] ^ tag[7];
 
-      tags[i].set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
-      tags[i].set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
+      tag.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
+      tag.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
     }
   }
 
