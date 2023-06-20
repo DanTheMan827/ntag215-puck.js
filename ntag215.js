@@ -72,6 +72,7 @@ const _Falling = "falling";
 const _Bluetooth = this.Bluetooth;
 const _Data = "data";
 const _Disconnect = "disconnect";
+const _Connect = "connect";
 
 // #endregion
 
@@ -107,6 +108,16 @@ var tags = [];
  * If {@link fastRx} should process data.
  */
 var rxPaused = false;
+
+/**
+ * Auto-sleep timeout reference.
+ */
+var autoSleepTimeout = null;
+
+/**
+ * If bluetooth is currently connected.
+ */
+var bluetoothConnected = false;
 // #endregion
 
 // #region Tag initialization
@@ -118,6 +129,26 @@ if (ENABLE_LOG) {
   _consoleLog("Tag count: " + tags.length);
 }
 // #endregion
+
+/**
+ * This function clears any pending auto-sleep timeout.
+ */
+function clearAutoSleep() {
+  if (autoSleepTimeout) {
+    clearTimeout(autoSleepTimeout);
+    autoSleepTimeout = null;
+  }
+}
+
+/**
+ * This function is called during activity to reset the auto-sleep timer.
+ */
+function resetAutoSleep() {
+  clearAutoSleep();
+  autoSleepTimeout = setTimeout(powerOff, AUTO_SLEEP_TIME);
+}
+
+
 
 /**
  * This function will repair a damaged UID for an NTAG215 while ignoring everything else.
@@ -208,6 +239,12 @@ function changeTag(slot, immediate) {
  * @see - {@link changeTag} If you want to change to a specific slot.
  */
 function cycleTags() {
+  if (AUTO_SLEEP_TIME > 0) {
+    if (!bluetoothConnected) {
+      resetAutoSleep();
+    }
+  }
+
   changeTag(++currentTag >= 7 ? 0 : currentTag);
 }
 
@@ -318,6 +355,22 @@ function setInitWatch() {
 }
 
 /**
+ * Called when bluetooth connected.
+ */
+function onBluetoothConnect() {
+  clearAutoSleep();
+  bluetoothConnected = true;
+}
+
+/**
+ * Called when bluetooth disconnected.
+ */
+function onBluetoothDisconnect() {
+  resetAutoSleep();
+  bluetoothConnected = false;
+}
+
+/**
  * Adds a watch to the main button.  When the button is held for {@link POWER_OFF_TIME}, it will call {@link setInitWatch}.
  */
 function powerOff() {
@@ -325,9 +378,17 @@ function powerOff() {
   setInitWatch();
   NRF.sleep();
   _NTAG215.nfcStop();
+
   if (ENABLE_LEDS) {
     flashLed(_LED1, 150, 2);
   }
+
+  if(AUTO_SLEEP_TIME > 0) {
+    clearAutoSleep();
+  }
+
+  NRF.removeListener(_Connect, onBluetoothConnect);
+  NRF.removeListener(_Disconnect, onBluetoothDisconnect);
 }
 
 /**
@@ -353,6 +414,13 @@ function initialize() {
   NRF.setAdvertising({}, {
     name: getBufferClone(storage.readArrayBuffer(PUCK_NAME_FILE))
   });
+
+  if (AUTO_SLEEP_TIME > 0) {
+    resetAutoSleep();
+  }
+
+  NRF.on(_Connect, onBluetoothConnect);
+  NRF.on(_Disconnect, onBluetoothDisconnect);
 }
 
 /**
@@ -613,6 +681,12 @@ if (typeof _NTAG215 !== "undefined") {
 
   // Event fired when the NFC field has been activated.
   NRF.on('NFCon', function nfcOn() {
+    if (AUTO_SLEEP_TIME > 0) {
+      if (!bluetoothConnected) {
+        clearAutoSleep();
+      }
+    }
+
     // Turn on the LEDs as indicated by the bits of the current slot.
     if (ENABLE_LEDS && currentTag < 7) {
       _LED1.write(currentTag + 1 & 1);
@@ -623,6 +697,12 @@ if (typeof _NTAG215 !== "undefined") {
 
   // Event fired when the NFC field becomes inactive.
   NRF.on('NFCoff', function nfcOff() {
+    if (AUTO_SLEEP_TIME > 0) {
+      if (!bluetoothConnected) {
+        resetAutoSleep();
+      }
+    }
+
     // Turn off all LEDs.
     if (ENABLE_LEDS) {
       _LED1.write(0);

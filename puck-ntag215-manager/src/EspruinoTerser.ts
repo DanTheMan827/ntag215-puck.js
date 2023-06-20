@@ -8,6 +8,7 @@ const options: MinifyOptions = {
       "PUCK_NAME_FILE",
       "_Rising",
       "_Bluetooth",
+      "_Connect",
       "_Disconnect",
       "_Data"
     ],
