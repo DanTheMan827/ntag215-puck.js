@@ -168,6 +168,12 @@ $(() => {
       })
 
       if (puck.isConnected) {
+        if (puck.isUart) {
+          $("#puckUart").hide()
+        } else {
+          $("#puckUart").show()
+        }
+
         await populateSlots()
 
         mainContainer.addClass("connected")

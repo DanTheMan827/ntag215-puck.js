@@ -4,17 +4,20 @@ const options: MinifyOptions = {
   "module": true,
   "compress": {
     "top_retain": [
+      "fastMode",
       "PUCK_NAME_FILE",
-      "BLE_SERVICE_ID",
-      "BLE_COMMAND_CHARACTERISTIC",
-      "BLE_RETURN_CHARACTERISTIC",
-      "_Rising"
+      "_Rising",
+      "_Bluetooth",
+      "_Disconnect",
+      "_Data"
     ],
     "pure_getters": true,
     "passes": 10
   },
   "mangle": {
-    "reserved": []
+    "reserved": [
+      "fastMode"
+    ]
   },
   "output": {
     "beautify": false

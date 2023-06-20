@@ -1,8 +1,15 @@
-export const serviceId = "78290001-d52e-473f-a9f4-f03da7c67dd1"
-export const commandCharacteristicId = "78290002-d52e-473f-a9f4-f03da7c67dd1"
-export const returnCharacteristicId = "78290003-d52e-473f-a9f4-f03da7c67dd1"
-export const nameCharacteristicId = "78290004-d52e-473f-a9f4-f03da7c67dd1"
-export const firmwareCharacteristicId = "78290005-d52e-473f-a9f4-f03da7c67dd1"
+import { sleep } from "./sleep"
+import { NORDIC_RX, NORDIC_SERVICE, NORDIC_TX } from "./uart/nordic"
+
+export const PUCK_SERVICE = "78290001-d52e-473f-a9f4-f03da7c67dd1"
+export const PUCK_TX = "78290002-d52e-473f-a9f4-f03da7c67dd1"
+export const PUCK_RX = "78290003-d52e-473f-a9f4-f03da7c67dd1"
+export const PUCK_NAME = "78290004-d52e-473f-a9f4-f03da7c67dd1"
+export const PUCK_FIRMWARE = "78290005-d52e-473f-a9f4-f03da7c67dd1"
+
+interface CharacteristicEvent extends Event {
+  target: BluetoothRemoteGATTCharacteristic;
+}
 
 export class Puck {
   private device: BluetoothDevice
@@ -11,9 +18,11 @@ export class Puck {
   private commandCharacteristic: BluetoothRemoteGATTCharacteristic
   private returnCharacteristic: BluetoothRemoteGATTCharacteristic
   private nameCharacteristic: BluetoothRemoteGATTCharacteristic
-  private firmwareCharacteristic: BluetoothRemoteGATTCharacteristic
   private totalSlots: number
   private _firmwareName: string
+  private nordicUart: boolean
+  private previousRx: DataView = new DataView(new ArrayBuffer(0))
+  private packetSize = 20
 
   private static dummyFunc: (...data: any[]) => void = () => undefined
 
@@ -35,6 +44,132 @@ export class Puck {
     return this._firmwareName
   }
 
+  get isUart(): boolean {
+    return this.nordicUart
+  }
+
+  private async readValue() {
+    if (this.nordicUart) {
+      await sleep(100)
+      return this.previousRx
+    }
+
+    return await this.returnCharacteristic.readValue()
+  }
+
+  private saveLastValue(ev: CharacteristicEvent) {
+    this.previousRx = ev.target.value
+    if (ev.target.value.byteLength > this.packetSize) {
+      this.packetSize = ev.target.value.byteLength
+      console.log(`New packet size: ${this.packetSize}`)
+    }
+  }
+
+  /**
+   *
+   * @param bytes The bytes to send
+   * @param count The number of bytes to read back.  If the count is 0, the next packet will be read.
+   * @param timeout The timeout period, this is reset on each packet received.
+   * @returns
+   */
+  private sendAndReadNext(bytes: Uint8Array, count: number = 0, timeout: number = 5000): Promise<DataView> {
+    return new Promise(async (resolve, reject) => {
+      const instance = this
+      let errorTimer: NodeJS.Timeout = undefined
+      const storage = new Uint8Array(count)
+      let currentOffset = 0
+
+      const resetTimeout = () => {
+        if (timeout > 0) {
+          if (errorTimer) {
+            clearInterval(errorTimer)
+          }
+
+          errorTimer = setTimeout(() => {
+            clearTimeout
+            reject(new Error("Read timeout."))
+          }, timeout)
+        }
+      }
+
+      const cleanupTimer = () => {
+        this.returnCharacteristic.removeEventListener("characteristicvaluechanged", finishName)
+
+        if (errorTimer) {
+          clearTimeout(errorTimer)
+        }
+      }
+
+      const finishName = (ev: CharacteristicEvent) => {
+        if (count > 0) {
+          const response = new Uint8Array(this.returnCharacteristic.value.buffer)
+
+          resetTimeout()
+
+          for (var i = 0; i < response.length; i++){
+            storage[currentOffset++] = response[i]
+
+            if (currentOffset >= count) {
+              // We have all the data we wanted
+              cleanupTimer()
+              resolve(new DataView(storage.buffer))
+
+              return
+            }
+          }
+        } else {
+          cleanupTimer()
+
+          resolve(this.returnCharacteristic.value)
+        }
+      }
+
+      this.returnCharacteristic.addEventListener("characteristicvaluechanged", finishName)
+
+      for (var i = 0; i < bytes.length; i = i + this.packetSize) {
+        resetTimeout()
+        await this.commandCharacteristic.writeValueWithResponse(bytes.slice(i, i + this.packetSize))
+      }
+    })
+  }
+
+  private async getFirmwareName(): Promise<string> {
+    var firmware = await this.sendAndReadNext(Uint8Array.from([Puck.Command.GetFirmware]))
+
+    return new TextDecoder().decode(firmware.buffer).slice(0, -1)
+  }
+
+  private initFastMode(timeout: number = 0): Promise<void> {
+    return new Promise(async (resolve, reject) => {
+      const instance = this
+      var errorTimer: NodeJS.Timeout = undefined
+
+      function finishName(this: BluetoothRemoteGATTCharacteristic, ev: CharacteristicEvent) {
+        var text = new TextDecoder().decode(ev.target.value)
+
+        if (text == "DTM_PUCK_FAST") {
+          this.removeEventListener("characteristicvaluechanged", finishName)
+
+          if (errorTimer) {
+            clearTimeout(errorTimer)
+          }
+
+          resolve()
+        }
+      }
+
+      if (timeout > 0) {
+        errorTimer = setTimeout(() => {
+          this.returnCharacteristic.removeEventListener("characteristicvaluechanged", finishName)
+          reject(new Error("Read timeout."))
+        }, timeout)
+      }
+
+      this.returnCharacteristic.addEventListener("characteristicvaluechanged", finishName)
+      await this.commandCharacteristic.writeValueWithResponse(new TextEncoder().encode("fastMode()\n"))
+    })
+  }
+
   async connect(disconnectCallback?: (this: BluetoothDevice, ev: Event) => any) {
     if (this.isConnected) {
       await this.disconnect()
@@ -42,7 +177,10 @@ export class Puck {
 
     this.log('Requesting Bluetooth Device...')
     this.device = await navigator.bluetooth.requestDevice({
-      filters: [{ services: [serviceId] }]
+      filters: [
+        { services: [PUCK_SERVICE] },
+        { services: [NORDIC_SERVICE] }
+      ]
     })
 
     if (disconnectCallback != null) {
@@ -53,26 +191,36 @@ export class Puck {
     this.log('Connecting to GATT Server...')
     this.server = await this.device.gatt.connect()
 
-    this.log('Getting Puck Service...')
-    this.service = await this.server.getPrimaryService(serviceId)
+    this.log('Getting Primary Service...')
+    var services = await this.server.getPrimaryServices()
+    this.service = services[0]
+
+    this.nordicUart = this.service.uuid == NORDIC_SERVICE
 
     this.log('Getting Command Characteristic...')
-    this.commandCharacteristic = await this.service.getCharacteristic(commandCharacteristicId)
+    this.commandCharacteristic = await this.service.getCharacteristic(this.nordicUart ? NORDIC_TX : PUCK_TX)
 
     this.log('Getting Return Characteristic...')
-    this.returnCharacteristic = await this.service.getCharacteristic(returnCharacteristicId)
+    this.returnCharacteristic = await this.service.getCharacteristic(this.nordicUart ? NORDIC_RX : PUCK_RX)
+    this.returnCharacteristic.startNotifications()
 
-    this.log('Getting Name Characteristic...')
-    this.nameCharacteristic = await this.service.getCharacteristic(nameCharacteristicId)
+    if (this.nordicUart) {
+      this.log('Connected to UART interface...')
+      await this.initFastMode()
+      this._firmwareName = await this.getFirmwareName()
+      this.returnCharacteristic.addEventListener("characteristicvaluechanged", (ev: CharacteristicEvent) => this.saveLastValue(ev))
+    } else {
+      try {
+        this.log('Getting Name Characteristic...')
+        this.nameCharacteristic = await this.service.getCharacteristic(PUCK_NAME)
+      } catch (noNameError) { }
 
-    try {
-      this.log('Getting Firmware Characteristic...')
-      this.firmwareCharacteristic = await this.service.getCharacteristic(firmwareCharacteristicId)
-      this._firmwareName = new TextDecoder().decode(await this.firmwareCharacteristic.readValue())
-    } catch (noFirmwareError) {
-
+      try {
+          this.log('Getting Firmware Characteristic...')
+          const firmwareCharacteristic = await this.service.getCharacteristic(PUCK_FIRMWARE)
+          this._firmwareName = new TextDecoder().decode(await firmwareCharacteristic.readValue())
+      } catch (noFirmwareError) { }
     }
-
     this.log('Getting slot information')
     const info = await this.getSlotInformation()
     this.totalSlots = info.totalSlots
@@ -90,7 +238,6 @@ export class Puck {
     this.commandCharacteristic =
     this.returnCharacteristic =
     this.nameCharacteristic =
-    this.firmwareCharacteristic =
     this._firmwareName = undefined
   }
 
@@ -99,7 +246,7 @@ export class Puck {
       throw new Error("Puck is not connected")
     }
 
-    const nameBytes = await this.nameCharacteristic.readValue()
+    const nameBytes = this.nordicUart ? await this.sendAndReadNext(Uint8Array.from([Puck.Command.GetName])) : await this.nameCharacteristic.readValue()
 
     return new TextDecoder().decode(nameBytes)
   }
@@ -111,7 +258,14 @@ export class Puck {
 
     const nameBytes = new TextEncoder().encode(name)
 
-    await this.nameCharacteristic.writeValueWithResponse(nameBytes)
+    if (this.nordicUart) {
+      let command = new Uint8Array(nameBytes.length + 1)
+      command.set(nameBytes, 1)
+      command[0] = Puck.Command.SetName
+      this.sendAndReadNext(command, command.length)
+    } else {
+      await this.nameCharacteristic.writeValueWithResponse(nameBytes)
+    }
   }
 
   private async _read(slot: number, startPage: number, count: number): Promise<Uint8Array> {
@@ -119,16 +273,23 @@ export class Puck {
 
     this.log(`Reading slot ${slot}, page ${startPage} through ${startPage + count}...`)
 
-    await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    if (!this.nordicUart) {
+      await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    }
+
     while (true) {
-      const response = await this.returnCharacteristic.readValue()
-      const responseArray = new Uint8Array((response).buffer)
+      const response = this.nordicUart ? await this.sendAndReadNext(Uint8Array.from(command), 576) : await this.readValue()
+      const responseArray = new Uint8Array(response.buffer)
 
       if (responseArray[0] === command[0] &&
         responseArray[1] === command[1] &&
         responseArray[2] === command[2] &&
         responseArray[3] === command[3]) {
         return responseArray.slice(4)
+      }
+
+      if (this.nordicUart){
+        throw new Error("Unexpected response.")
       }
     }
   }
@@ -148,14 +309,20 @@ export class Puck {
 
       const command = [Puck.Command.SlotInformation, slot]
 
-      await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+      if (!this.nordicUart){
+        await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+      }
 
       while (true) {
-        const response = await this.returnCharacteristic.readValue()
+        const response = this.nordicUart ? await this.sendAndReadNext(Uint8Array.from(command), 82) : await this.readValue()
         const responseArray = new Uint8Array((response).buffer)
 
         if (responseArray.length === 82 && command[0] === responseArray[0] && command[1] === responseArray[1]) {
           return responseArray.slice(2)
+        }
+
+        if (this.nordicUart){
+          throw new Error("Unexpected response.")
         }
       }
     } else {
@@ -173,11 +340,13 @@ export class Puck {
       slot = info.currentSlot
     }
 
+    const startTime = new Date()
+
     if (slot >= 0 && slot < this.totalSlots) {
       this.log(`Reading slot ${slot}...`)
 
       const data = new Uint8Array(572)
-      const maxPages = 63
+      const maxPages = this.nordicUart ? 143 : 63
 
       let currentPage = 0
 
@@ -188,6 +357,9 @@ export class Puck {
         data.set(currentData, currentPage * 4)
         currentPage += pageCount
       }
+
+      const endTime = new Date()
+      console.log(`Total time: ${endTime.getMilliseconds() - startTime.getMilliseconds()}ms`)
 
       return data
     } else {
@@ -206,22 +378,33 @@ export class Puck {
       slot = info.currentSlot
     }
 
+    const startTime = new Date()
+    const maxBytes = Math.floor((this.packetSize - 3) / 4) * 4
+
     if (slot >= 0 && slot < this.totalSlots && data != null && data.length <= 572) {
       const paddedArray = new Uint8Array(572)
       paddedArray.set(data, 0)
 
-      for (let i = 0; i < paddedArray.length; i += 16) {
-        const dataSlice = paddedArray.slice(i, i + 16)
-        const command = new Uint8Array(dataSlice.length + 3)
-        command[0] = Puck.Command.Write
-        command[1] = slot
-        command[2] = i / 4
-        command.set(dataSlice, 3)
+      if (this.nordicUart) {
+        await this.sendAndReadNext(Uint8Array.from([Puck.Command.FullWrite, slot]))
+        await this.sendAndReadNext(paddedArray);
+      } else {
+        for (let i = 0; i < paddedArray.length; i += maxBytes) {
+          const dataSlice = paddedArray.slice(i, i + maxBytes)
+          const command = new Uint8Array(dataSlice.length + 3)
+          command[0] = Puck.Command.Write
+          command[1] = slot
+          command[2] = i / 4
+          command.set(dataSlice, 3)
 
-        this.log(`Writing to slot ${slot}, page ${command[2]} for ${dataSlice.length} bytes...`)
+          this.log(`Writing to slot ${slot}, page ${command[2]} for ${dataSlice.length} bytes...`)
 
-        await this.commandCharacteristic.writeValueWithResponse(command)
+          await this.commandCharacteristic.writeValueWithResponse(command)
+        }
       }
+
+      const endTime = new Date()
+      console.log(`Total time: ${endTime.getMilliseconds() - startTime.getMilliseconds()}ms`)
 
       await this.restartNfc(info.currentSlot)
       await this.saveSlot(slot)
@@ -249,7 +432,11 @@ export class Puck {
       this.log("Saving current slot")
     }
 
-    await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    if (this.nordicUart) {
+      await this.sendAndReadNext(Uint8Array.from(command))
+    } else {
+      await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    }
   }
 
   async getSlotInformation(): Promise<Puck.SlotInfo> {
@@ -260,8 +447,15 @@ export class Puck {
     const command = [Puck.Command.SlotInformation]
 
     this.log("Reading slot information...")
-    await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
-    const response = new Uint8Array((await this.returnCharacteristic.readValue()).buffer)
+    var response: Uint8Array
+
+    if (this.nordicUart) {
+      var rawResponse = await this.sendAndReadNext(Uint8Array.from(command))
+      response = new Uint8Array(rawResponse.buffer)
+    } else {
+      await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+      response = new Uint8Array((await this.readValue()).buffer)
+    }
 
     return {
       currentSlot: response[1],
@@ -326,7 +520,11 @@ export class Puck {
       this.log("Restarting NFC")
     }
 
-    await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    if (this.nordicUart) {
+      await this.sendAndReadNext(Uint8Array.from(command))
+    } else {
+      await this.commandCharacteristic.writeValueWithResponse(Uint8Array.from(command))
+    }
   }
 
   changeSlot = this.restartNfc
@@ -341,10 +539,15 @@ export namespace Puck {
   }
 
   export enum Command {
+    BlePacketTest = 0x00,
     SlotInformation = 0x01,
     Read = 0x02,
     Write = 0x03,
     SaveSlot = 0x04,
+    FullWrite = 0x05,
+    GetName = 0xFA,
+    SetName = 0xFB,
+    GetFirmware = 0xFC,
     MoveSlot = 0xFD,
     EnableUart = 0xFE,
     RestartNFC = 0xFF
