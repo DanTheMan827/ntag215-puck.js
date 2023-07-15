@@ -73,7 +73,10 @@ export interface SemVer {
 
 export interface GetCodeOptions {
   saveToFlash?: boolean,
-  board?: string
+  board?: string,
+  enableLed1?: boolean,
+  enableLed2?: boolean,
+  enableLed3?: boolean
 }
 
 export function isConnected(): boolean {
@@ -128,12 +131,18 @@ export async function getBoard(): Promise<string> {
   return JSON.parse(await executeExpression("process.env.BOARD"))
 }
 
+export async function checkLed(ledNumber: number): Promise<boolean> {
+  if (!isConnected()) {
+    throw new Error("Device not connected")
+  }
 
+  return (await executeExpression(`this.LED${ledNumber} != null`)).trim() == 'true'
+}
 
 export function getCode(options: GetCodeOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const {
-      saveToFlash = false, board = undefined
+      saveToFlash = false, board = undefined, enableLed1, enableLed2, enableLed3
     } = options
     let code = $("#code").text() as string
 
@@ -141,12 +150,33 @@ export function getCode(options: GetCodeOptions = {}): Promise<string> {
       /(const SAVE_TO_FLASH = )(true|false);/,
       `$1${saveToFlash};`)
 
-    if (board) {
-      code = code.replace(
-        /(const BOARD = )(process\.env\.BOARD);/,
-        `$1${JSON.stringify(board)};`
-      )
-    }
+      if (board) {
+        code = code.replace(
+          /(const BOARD = )(process\.env\.BOARD);/,
+          `$1${JSON.stringify(board)};`
+        )
+      }
+
+      if (enableLed1 != null) {
+        code = code.replace(
+          /(const ENABLE_LED1 = )(this\.LED1 != null);/,
+          `$1${enableLed1};`
+        )
+      }
+
+      if (enableLed2 != null) {
+        code = code.replace(
+          /(const ENABLE_LED2 = )(this\.LED2 != null);/,
+          `$1${enableLed2};`
+        )
+      }
+
+      if (enableLed3 != null) {
+        code = code.replace(
+          /(const ENABLE_LED3 = )(this\.LED3 != null);/,
+          `$1${enableLed3};`
+        )
+      }
 
     Espruino.callProcessor("transformForEspruino", code, resolve)
   })

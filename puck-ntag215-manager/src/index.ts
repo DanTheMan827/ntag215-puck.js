@@ -323,6 +323,9 @@ $(() => {
       await EspruinoHelper.open()
 
       const board = await EspruinoHelper.getBoard()
+      const enableLed1 = await EspruinoHelper.checkLed(1)
+      const enableLed2 = await EspruinoHelper.checkLed(2)
+      const enableLed3 = await EspruinoHelper.checkLed(3)
       const ver = await EspruinoHelper.getNtagVersion()
 
       if (!(ver.major === 1 && ver.minor >= 0)) {
@@ -363,7 +366,10 @@ $(() => {
 
       await EspruinoHelper.writeCode({
         saveToFlash: modalResult === ModalResult.ButtonYes,
-        board
+        board,
+        enableLed1,
+        enableLed2,
+        enableLed3
       })
 
       EspruinoHelper.close()

@@ -80,7 +80,10 @@ const _Connect = "connect";
 /**
  * Whether to enable code that changes LEDs
  */
-const ENABLE_LEDS = BOARD == "PUCKJS";
+const ENABLE_LED1 = this.LED1 != null;
+const ENABLE_LED2 = this.LED2 != null;
+const ENABLE_LED3 = this.LED3 != null;
+const ENABLE_LEDS = ENABLE_LED1 || ENABLE_LED2 || ENABLE_LED3;
 // #endregion
 
 // #region Variables
@@ -210,16 +213,32 @@ function changeTag(slot, immediate) {
   currentTag = slot;
 
   if (ENABLE_LEDS && currentTag < 7) {
-    _LED1.write(currentTag + 1 & 1);
-    _LED2.write(currentTag + 1 & 2);
-    _LED3.write(currentTag + 1 & 4);
+    if (ENABLE_LED1) {
+      _LED1.write(currentTag + 1 & 1);
+    }
+
+    if (ENABLE_LED2) {
+      _LED2.write(currentTag + 1 & 2);
+    }
+
+    if (ENABLE_LED3) {
+      _LED3.write(currentTag + 1 & 4);
+    }
   }
 
   function innerChangeTag() {
     if (ENABLE_LEDS) {
-      _LED1.write(0);
-      _LED2.write(0);
-      _LED3.write(0);
+      if (ENABLE_LED1) {
+        _LED1.write(0);
+      }
+
+      if (ENABLE_LED2) {
+        _LED2.write(0);
+      }
+
+      if (ENABLE_LED3) {
+        _LED3.write(0);
+      }
     }
 
     _NTAG215.setTagData(getTag(slot).buffer);
@@ -300,7 +319,7 @@ function saveAllTags() {
  * @returns
  */
 function flashLed(led, interval, times, callback) {
-  if (ENABLE_LEDS) {
+  if (ENABLE_LEDS && led != null) {
     if (times < 1) {
       if (callback) {
         return callback();
@@ -332,7 +351,7 @@ function flashLed(led, interval, times, callback) {
  * The power on sequence started by {@link setInitWatch}.
  */
 function powerOn() {
-  if (ENABLE_LEDS) {
+  if (ENABLE_LED2) {
     flashLed(_LED2, 150, 2, () => {
       NRF.wake();
       initialize();
@@ -379,7 +398,7 @@ function powerOff() {
   NRF.sleep();
   _NTAG215.nfcStop();
 
-  if (ENABLE_LEDS) {
+  if (ENABLE_LED1) {
     flashLed(_LED1, 150, 2);
   }
 
@@ -689,9 +708,17 @@ if (typeof _NTAG215 !== "undefined") {
 
     // Turn on the LEDs as indicated by the bits of the current slot.
     if (ENABLE_LEDS && currentTag < 7) {
-      _LED1.write(currentTag + 1 & 1);
-      _LED2.write(currentTag + 1 & 2);
-      _LED3.write(currentTag + 1 & 4);
+      if (ENABLE_LED1) {
+        _LED1.write(currentTag + 1 & 1);
+      }
+
+      if (ENABLE_LED2) {
+        _LED2.write(currentTag + 1 & 2);
+      }
+
+      if (ENABLE_LED3) {
+        _LED3.write(currentTag + 1 & 4);
+      }
     }
   });
 
@@ -705,9 +732,17 @@ if (typeof _NTAG215 !== "undefined") {
 
     // Turn off all LEDs.
     if (ENABLE_LEDS) {
-      _LED1.write(0);
-      _LED2.write(0);
-      _LED3.write(0);
+      if (ENABLE_LED1) {
+        _LED1.write(0);
+      }
+
+      if (ENABLE_LED2) {
+        _LED2.write(0);
+      }
+
+      if (ENABLE_LED3) {
+        _LED3.write(0);
+      }
     }
 
     // Fix the tag UID if needed, and restart.
@@ -758,7 +793,7 @@ if (typeof _NTAG215 !== "undefined") {
   initialize();
 } else {
   // We don't have the custom firmware needed.
-  if (ENABLE_LEDS) {
+  if (ENABLE_LED1) {
     // Turn on the red LED.
     _LED1.write(1);
   }
