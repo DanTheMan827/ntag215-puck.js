@@ -27,7 +27,7 @@ const ENABLE_LOG = false;
 /**
  * The name of the script.
  */
-const FIRMWARE_NAME = "dtm-2.0.0";
+const FIRMWARE_NAME = "dtm-2.1.0";
 
 /**
  * The file name in flash used to store the bluetooth device name.
@@ -691,7 +691,13 @@ function fastRx(data) {
 if (typeof _NTAG215 !== "undefined") {
   // If no name has been assigned, set a generic one based on the hardware ID.
   if (storage.readArrayBuffer(PUCK_NAME_FILE) == undefined) {
-    storage.write(PUCK_NAME_FILE, "Puck.js " + NRF.getAddress().substr(12, 5).split(":").join(""));
+    if (BOARD === "PUCKJS") {
+      storage.write(PUCK_NAME_FILE, "Puck.js " + NRF.getAddress().substr(12, 5).split(":").join(""));
+    } else if (BOARD === "PIXLJS") {
+      storage.write(PUCK_NAME_FILE, "Pixl.js " + NRF.getAddress().substr(12, 5).split(":").join(""));
+    } else {
+      storage.write(PUCK_NAME_FILE, BOARD.charAt(0).toUpperCase() + BOARD.substring(1).toLowerCase() + " " + NRF.getAddress().substr(12, 5).split(":").join(""));
+    }
   }
 
   // Set the buffer for the NTAG emulation to use.
