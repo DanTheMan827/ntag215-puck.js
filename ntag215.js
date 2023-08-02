@@ -171,6 +171,47 @@ function fixUid() {
 }
 
 /**
+ * This function takes an array `inputData` as input and converts its elements into hexadecimal format, displaying them in a formatted way for better visualization.
+ *
+ * Terser will optimize the function away because it's not used, but it's useful to have for debugging.
+ * @param {Uint8Array} inputData
+ */
+function hexDump(inputData) {
+  // Initialize an empty string `line`, which will be used to build the output lines containing the hexadecimal values.
+  var line = "";
+
+  // Iterate through each element of the `inputData` array.
+  for (let i = 0; i < inputData.length; i++) {
+    /*
+      Convert the decimal value of the current element to a two-digit hexadecimal string.
+      If the hexadecimal string is less than two digits, pad it with leading zeros.
+      Convert the result to uppercase for consistency.
+    */
+    const hex = inputData[i].toString(16).padStart(2, '0').toUpperCase();
+
+    // Append the hexadecimal value followed by a space to the `line` string.
+    line = line + hex + ' ';
+
+    // Check if the current index is a multiple of 8 (i.e., the end of a line).
+    if ((i + 1) % 8 === 0) {
+      // If 8 elements have been added to the `line` string, log the current `line` to the console.
+      console.log(line.trim());
+
+      // Reset the `line` string to an empty state, to start building the next line.
+      line = '';
+    }
+  }
+
+  /*
+    After the loop, there might be remaining elements in the `line` string that were not enough to form a complete line of 8 elements.
+    In that case, log the remaining `line` to the console.
+  */
+  if (line != '') {
+    console.log(line.trim());
+  }
+}
+
+/**
  * Generates a random UID.
  * @returns  {Uint8Array} The UID.
  */
