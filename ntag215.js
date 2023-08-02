@@ -171,6 +171,25 @@ function fixUid() {
 }
 
 /**
+ * Generates a random UID.
+ * @returns  {Uint8Array} The UID.
+ */
+function generateUid() {
+  var uid = new Uint8Array(9);
+  uid[0] = 0x04;
+  uid[1] = _MathRound(_MathRandom() * 255);
+  uid[2] = _MathRound(_MathRandom() * 255);
+  uid[3] = uid[0] ^ uid[1] ^ uid[2] ^ 0x88;
+  uid[4] = _MathRound(_MathRandom() * 255);
+  uid[5] = _MathRound(_MathRandom() * 255);
+  uid[6] = _MathRound(_MathRandom() * 255);
+  uid[7] = _MathRound(_MathRandom() * 255);
+  uid[8] = uid[4] ^ uid[5] ^ uid[6] ^ uid[7];
+
+  return uid;
+}
+
+/**
  * Returns a {@link Uint8Array} for the slot requested.
  * @param {Number} slot - The requested slot.
  * @returns {Uint8Array} - A read / write array in memory.
@@ -779,15 +798,7 @@ if (typeof _NTAG215 !== "undefined") {
       tag.set(buffer);
     } else {
       // Generate blank NTAG215 tags with random, but valid UID.
-      tag[0] = 0x04;
-      tag[1] = _MathRound(_MathRandom() * 255);
-      tag[2] = _MathRound(_MathRandom() * 255);
-      tag[3] = tag[0] ^ tag[1] ^ tag[2] ^ 0x88;
-      tag[4] = _MathRound(_MathRandom() * 255);
-      tag[5] = _MathRound(_MathRandom() * 255);
-      tag[6] = _MathRound(_MathRandom() * 255);
-      tag[7] = _MathRound(_MathRandom() * 255);
-      tag[8] = tag[4] ^ tag[5] ^ tag[6] ^ tag[7];
+      tag.set(generateUid(), 0);
 
       // Set extra data present in blank tags.
       tag.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
