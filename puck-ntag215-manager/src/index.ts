@@ -358,6 +358,15 @@ $(() => {
         preventClose: true
       })
 
+      const debugModalResult = await showModal({
+        title: "Enable Debug Mode?",
+        message: modalMessages(ModalMessageType.DebugMode),
+        htmlEscapeBody: false,
+        buttons: ModalButtonTypes.YesNo,
+        dialog: true,
+        preventClose: true
+      })
+
       await showModal({
         title: "Please Wait",
         message: "Uploading script file, please wait.",
@@ -366,6 +375,7 @@ $(() => {
 
       await EspruinoHelper.writeCode({
         saveToFlash: modalResult === ModalResult.ButtonYes,
+        enableDebug: debugModalResult === ModalResult.ButtonYes,
         board,
         enableLed1,
         enableLed2,
