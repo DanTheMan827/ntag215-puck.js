@@ -2,6 +2,7 @@ const template = require("./templates/modal-messages.pug")
 
 export enum ModalMessageType {
   SaveToFlash = "save-to-flash",
+  DebugMode = "debug-mode",
   DfuInstructions = "dfu-instructions",
   FirmwareUpdate = "firmware-update"
 }
