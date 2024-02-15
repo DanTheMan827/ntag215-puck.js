@@ -141,14 +141,13 @@ export class Puck {
 
   private initFastMode(timeout: number = 0): Promise<void> {
     return new Promise(async (resolve, reject) => {
-      const instance = this
       var errorTimer: NodeJS.Timeout = undefined
 
-      function finishName(this: BluetoothRemoteGATTCharacteristic, ev: CharacteristicEvent) {
+      function finishName(ev: CharacteristicEvent) {
         var text = new TextDecoder().decode(ev.target.value)
 
-        if (text == "DTM_PUCK_FAST") {
-          this.removeEventListener("characteristicvaluechanged", finishName)
+        if (text.includes("DTM_PUCK_FAST")) {
+          ev.target.removeEventListener("characteristicvaluechanged", finishName)
 
           if (errorTimer) {
             clearTimeout(errorTimer)
