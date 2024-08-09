@@ -1,0 +1,33 @@
+.sponsor-corner {
+  position: fixed;
+  bottom: 20px; /* Adjust as needed for spacing */
+  left: 20px; /* Adjust as needed for spacing */
+  width: 48px; /* Size of the circle */
+  height: 48px; /* Size of the circle */
+  border-radius: 50%;
+  background-color: #db61a2bb; /* Hot pink with 70% opacity */
+  backdrop-filter: blur(8px); /* 8px blurred background */
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2); /* Subtle shadow */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  transition: background-color 0.2s ease;
+
+  &:hover {
+    background-color: #db61a2; /* Solid hot pink on hover */
+
+    svg {
+      
+    fill: white;
+    }
+  }
+
+  svg {
+    position: absolute;
+    top: 0px;
+    left: 0;
+    bottom: 0;
+    right: 0;
+    padding: 14% 10% 10% 10%;
+  }
+}
