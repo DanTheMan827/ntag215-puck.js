@@ -1,6 +1,7 @@
 # NTAG215 for Puck.js
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W7ECXQ9)
+**[💖 Become a GitHub Sponsor](https://github.com/sponsors/DanTheMan827)**
+
 
 This repository contains code for an NTAG215 emulator for the Puck.js
 
