@@ -1,7 +1,5 @@
 # NTAG215 for Puck.js
 
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/W7W7ECXQ9)
-
 This repository contains code for an NTAG215 emulator for the Puck.js
 
 You can put the puck.js to sleep by holding the button for 5 seconds, to wake it just hold for another 5 seconds.
