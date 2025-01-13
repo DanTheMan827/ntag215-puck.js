@@ -5,7 +5,22 @@
 
 version: 2
 updates:
-  - package-ecosystem: "NPM" # See documentation for possible values
-    directory: "/puck-ntag215-manager/" # Location of package manifests
+  - package-ecosystem: "npm" # See documentation for possible values
+    directory: "/puck-ntag215-manager" # Location of package manifests
     schedule:
       interval: "weekly"
+    groups:
+      version-updates:
+        applies-to: version-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
+      security-updates:
+        applies-to: security-updates
+        patterns:
+          - "*"
+        update-types:
+          - "patch"
+          - "minor"
