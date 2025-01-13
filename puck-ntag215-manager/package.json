@@ -32,7 +32,7 @@
     "crc-32": "^1.2.2",
     "css-loader": "^5.2.7",
     "css-minimizer-webpack-plugin": "^4.0.0",
-    "cssnano": "^5.1.13",
+    "cssnano": "^7.0.6",
     "del-cli": "^6.0.0",
     "escodegen": "^1.8.0",
     "esmangle": "^1.0.1",
