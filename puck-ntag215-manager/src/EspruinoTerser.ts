@@ -10,14 +10,18 @@ const options: MinifyOptions = {
       "_Bluetooth",
       "_Connect",
       "_Disconnect",
-      "_Data"
+      "_Data",
+      "randomizeUid",
+      "generateTag"
     ],
     "pure_getters": true,
     "passes": 10
   },
   "mangle": {
     "reserved": [
-      "fastMode"
+      "fastMode",
+      "randomizeUid",
+      "generateTag"
     ]
   },
   "output": {

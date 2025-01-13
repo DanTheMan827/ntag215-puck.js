@@ -251,6 +251,11 @@ const txBuffer = new Uint8Array(32);
 const tags = [];
 
 /**
+ * An array containing the amiibo keys.
+ */
+var keys = null;
+
+/**
  * If {@link fastRx} should process data.
  */
 let rxPaused = false;
@@ -1047,6 +1052,124 @@ function fastRx(data) {
   _Bluetooth.write(data);
 }
 
+/**
+ * Sets the internal UID (unique identifier) for a tag, or generates a new one if not provided.
+ *
+ * @param {Uint8Array} tag - The tag to set the internal UID for.
+ * @param {Uint8Array} [uid] - (Optional) The UID to set. If not provided, a new one will be generated.
+ */
+function setInternalUid(tag, uid) {
+  uid = uid || generateUid();
+
+  // Set the first 8 bytes of the new UID.
+  tag.set(uid.slice(0, 8), 0x1D4);
+
+  // ... (omitted) check byte is elsewhere.
+  tag[0x00] = uid[8];
+}
+
+/**
+ * Sets the internal password for a tag.
+ *
+ * @param {Uint8Array} tag - The tag to set the internal password for.
+ */
+function setInternalPass(tag) {
+  tag[532] = 0xAA ^ tag[1] ^ tag[3];
+  tag[533] = 0x55 ^ tag[2] ^ tag[4];
+  tag[534] = 0xAA ^ tag[3] ^ tag[5];
+  tag[535] = 0x55 ^ tag[4] ^ tag[6];
+}
+
+/**
+ * Sets a generated tag with specific values and random 32-byte salt.
+ *
+ * @param {Uint8Array} tag - The tag to set with generated values.
+ * @param {Uint8Array} identifier - The identifier data to set in the tag.
+ */
+function setGeneratedTag(tag, identifier) {
+  // Fill the tag with zeros.
+  tag.fill(0);
+
+  // Set specific values in the tag.
+  tag.set([0x48, 0x0F, 0xE0, 0xF1, 0x10, 0xFF, 0xEE], 0x01);
+  tag[0x28] = 0xA5;
+  tag.set(identifier, 0x1DC);
+  tag.set([0x01, 0x00, 0x0F, 0xBD], 0x208);
+  tag.set([0x04, 0x5F], 0x20F);
+
+  // Generate a random 32-byte salt.
+  for (let i = 0; i < 32; i++) {
+    tag[0x1E8 + i] = Math.floor(Math.random() * 256);
+  }
+
+  // Set the internal UID and internal password for the tag.
+  setInternalUid(tag);
+  setInternalPass(tag);
+
+  // Pack and encrypt the tag.
+  amiitool.pack(keys, tag);
+}
+
+/**
+ * Randomizes the internal UID for a tag in a specific slot.
+ *
+ * @param {number} slot - The slot number of the tag to randomize the UID for.
+ */
+function randomizeUid(slot) {
+  // Unpack and decrypt the tag.
+  amiitool.unpack(keys, tags[slot]);
+
+  // Set the internal UID and internal password for the tag.
+  setInternalUid(tags[slot]);
+  setInternalPass(tags[slot]);
+
+  // Pack and encrypt the tag.
+  amiitool.pack(keys, tags[slot]);
+
+  // Refresh the tag if needed.
+  refreshTag(slot);
+}
+
+/**
+ * Generates a tag with specific values in a specific slot and refreshes it.
+ *
+ * @param {number} slot - The slot number of the tag to generate.
+ * @param {Uint8Array} identifier - The identifier data to set in the tag.
+ */
+function generateTag(slot, identifier) {
+  // Set the generated tag with specific values.
+  setGeneratedTag(tags[slot], identifier);
+
+  // Refresh the tag if needed.
+  refreshTag(slot);
+}
+
+/**
+ * Convert a string to Title Case where the first letter of each word is capitalized.
+ *
+ * @param {string} str - The input string to be converted to Title Case.
+ * @returns {string} The input string converted to Title Case.
+ */
+function titleCase(str) {
+  return str.toLowerCase().replace(/(^|\s)\w/g, function(match) {
+    return match.toUpperCase();
+  });
+}
+
+/**
+ * Generates a beep sound with the specified frequency and duration.
+ *
+ * @param {number} freq - The frequency of the beep sound in Hz.
+ * @param {number} [ms=50] - The duration of the beep sound in milliseconds (default is 50ms).
+ * @returns {void}
+ */
+function beep(freq, ms) {
+  analogWrite(D14, 0.5, { freq: freq, soft: true });
+  setTimeout(function() {
+    digitalWrite(D14, 1);
+  }, ms || 50);
+}
+
 // Check if the firmware flashed to the puck contains the needed NTAG emulation code.
 if (typeof _NTAG215 !== "undefined") {
   // If no name has been assigned, set a generic one based on the hardware ID.
@@ -1056,7 +1179,7 @@ if (typeof _NTAG215 !== "undefined") {
     } else if (BOARD === "PIXLJS") {
       storage.write(PUCK_NAME_FILE, "Pixl.js " + NRF.getAddress().substr(12, 5).split(":").join(""));
     } else {
-      storage.write(PUCK_NAME_FILE, BOARD.charAt(0).toUpperCase() + BOARD.substring(1).toLowerCase() + " " + NRF.getAddress().substr(12, 5).split(":").join(""));
+      storage.write(PUCK_NAME_FILE, titleCase(BOARD) + " " + NRF.getAddress().substr(12, 5).split(":").join(""));
     }
   }
 
@@ -1142,6 +1265,8 @@ if (typeof _NTAG215 !== "undefined") {
       tag.set(generateBlankTag());
     }
   }
+
+  keys = getBufferClone(storage.readArrayBuffer("key_retail.bin"));
 
   // Initialize watches and start BLE advertising.
   initialize();
