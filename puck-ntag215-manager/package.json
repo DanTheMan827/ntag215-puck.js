@@ -49,7 +49,7 @@
     "mini-css-extract-plugin": "^2.9.2",
     "move-cli": "^2.0.0",
     "postcss-import": "^14.1.0",
-    "postcss-loader": "^4.3.0",
+    "postcss-loader": "^8.1.1",
     "postcss-preset-env": "^7.8.1",
     "pug": "^3.0.3",
     "pug-loader": "github:DanTheMan827/pug-loader",
