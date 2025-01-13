@@ -4,6 +4,10 @@ case kind
     p If this feature is not enabled, the tags stored on the puck will be lost when the battery dies or if it is removed.
     p This may reduce the life of the puck due to the additional writes to the flash storage.
 
+  when "debug-mode"
+    p Do you want to enable debug mode?
+    p This will enable log output and use "Serial1" as a console when fast mode is enabled.
+
   when "dfu-instructions"
     p To enter DFU mode, please remove the battery from your Puck.js and re-insert it while holding the power button until the LED indicator turns green.
 

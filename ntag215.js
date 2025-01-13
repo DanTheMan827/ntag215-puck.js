@@ -25,6 +25,11 @@ const POWER_OFF_TIME = 5000;
 const ENABLE_LOG = false;
 
 /**
+ * Target console device that is set when calling {@link fastMode}.
+ */
+const FAST_MODE_CONSOLE = null;
+
+/**
  * The name of the script.
  */
 const FIRMWARE_NAME = "dtm-2.1.0";
@@ -508,8 +513,8 @@ function initialize() {
  * The string indicated by {@link FAST_MODE_STRING} will be sent when {@link fastRx} is ready to start receiving data.
  */
 function fastMode() {
-  // Move the console to Serial1 so it doesn't do anything over Bluetooth.
-  Serial1.setConsole();
+  // Move the console to the specified device so it doesn't do anything over Bluetooth.
+  E.setConsole(FAST_MODE_CONSOLE);
 
   // Attach fastRx to the bluetooth data received event.
   _Bluetooth.on(_Data, fastRx);
@@ -534,6 +539,9 @@ function onFastModeDisconnect() {
 
   // Remove event listener
   NRF.removeListener(_Disconnect, onFastModeDisconnect);
+
+  // Restore Bluetooth console
+  E.setConsole("Bluetooth");
 }
 
 /**
@@ -679,7 +687,7 @@ function fastRx(data) {
           });
 
           _Bluetooth.write(data);
-        }, 0)
+        }, 0);
 
         return;
 

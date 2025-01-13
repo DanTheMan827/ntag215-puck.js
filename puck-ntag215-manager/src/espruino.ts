@@ -73,6 +73,7 @@ export interface SemVer {
 
 export interface GetCodeOptions {
   saveToFlash?: boolean,
+  enableDebug?: boolean,
   board?: string,
   enableLed1?: boolean,
   enableLed2?: boolean,
@@ -142,41 +143,48 @@ export async function checkLed(ledNumber: number): Promise<boolean> {
 export function getCode(options: GetCodeOptions = {}): Promise<string> {
   return new Promise((resolve, reject) => {
     const {
-      saveToFlash = false, board = undefined, enableLed1, enableLed2, enableLed3
+      saveToFlash = false, enableDebug = false, board = undefined, enableLed1, enableLed2, enableLed3
     } = options
     let code = $("#code").text() as string
 
     code = code.replace(
       /(const SAVE_TO_FLASH = )(true|false);/,
-      `$1${saveToFlash};`)
+      `$1${saveToFlash};`
+    ).replace(
+      /(const ENABLE_LOG = )(true|false);/,
+      `$1${enableDebug};`
+    ).replace(
+      /(const FAST_MODE_CONSOLE = )([^;]+);/,
+      `$1${enableDebug ? '"Serial1"' : null};`
+    );
 
-      if (board) {
-        code = code.replace(
-          /(const BOARD = )(process\.env\.BOARD);/,
-          `$1${JSON.stringify(board)};`
-        )
-      }
+    if (board) {
+      code = code.replace(
+        /(const BOARD = )(process\.env\.BOARD);/,
+        `$1${JSON.stringify(board)};`
+      )
+    }
 
-      if (enableLed1 != null) {
-        code = code.replace(
-          /(const ENABLE_LED1 = )(this\.LED1 != null);/,
-          `$1${enableLed1};`
-        )
-      }
+    if (enableLed1 != null) {
+      code = code.replace(
+        /(const ENABLE_LED1 = )(this\.LED1 != null);/,
+        `$1${enableLed1};`
+      )
+    }
 
-      if (enableLed2 != null) {
-        code = code.replace(
-          /(const ENABLE_LED2 = )(this\.LED2 != null);/,
-          `$1${enableLed2};`
-        )
-      }
+    if (enableLed2 != null) {
+      code = code.replace(
+        /(const ENABLE_LED2 = )(this\.LED2 != null);/,
+        `$1${enableLed2};`
+      )
+    }
 
-      if (enableLed3 != null) {
-        code = code.replace(
-          /(const ENABLE_LED3 = )(this\.LED3 != null);/,
-          `$1${enableLed3};`
-        )
-      }
+    if (enableLed3 != null) {
+      code = code.replace(
+        /(const ENABLE_LED3 = )(this\.LED3 != null);/,
+        `$1${enableLed3};`
+      )
+    }
 
     Espruino.callProcessor("transformForEspruino", code, resolve)
   })
