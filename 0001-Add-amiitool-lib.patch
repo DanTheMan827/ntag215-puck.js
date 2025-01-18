@@ -1,0 +1,835 @@
+From 575da2a0fb74aca249dc90fc5d52f97586e251d0 Mon Sep 17 00:00:00 2001
+From: Daniel <790119+DanTheMan827@users.noreply.github.com>
+Date: Mon, 31 Jul 2023 23:39:14 -0500
+Subject: [PATCH] Add amiitool lib
+
+---
+ Makefile                             |  12 ++
+ libs/amiitool/amiibo.c               | 132 +++++++++++++++++++
+ libs/amiitool/amiitool.c             | 172 ++++++++++++++++++++++++
+ libs/amiitool/drbg.c                 |  78 +++++++++++
+ libs/amiitool/include/nfc3d/amiibo.h |  30 +++++
+ libs/amiitool/include/nfc3d/drbg.h   |  32 +++++
+ libs/amiitool/include/nfc3d/keygen.h |  34 +++++
+ libs/amiitool/jswrap_amiitool.c      | 187 +++++++++++++++++++++++++++
+ libs/amiitool/jswrap_amiitool.h      |  10 ++
+ libs/amiitool/keygen.c               |  53 ++++++++
+ 10 files changed, 740 insertions(+)
+ create mode 100644 libs/amiitool/amiibo.c
+ create mode 100644 libs/amiitool/amiitool.c
+ create mode 100644 libs/amiitool/drbg.c
+ create mode 100644 libs/amiitool/include/nfc3d/amiibo.h
+ create mode 100644 libs/amiitool/include/nfc3d/drbg.h
+ create mode 100644 libs/amiitool/include/nfc3d/keygen.h
+ create mode 100644 libs/amiitool/jswrap_amiitool.c
+ create mode 100644 libs/amiitool/jswrap_amiitool.h
+ create mode 100644 libs/amiitool/keygen.c
+
+diff --git a/Makefile b/Makefile
+index 203404f2c..bb0507671 100755
+--- a/Makefile
++++ b/Makefile
+@@ -616,6 +616,18 @@ ifeq ($(USE_BLUETOOTH),1)
+   SOURCES += libs/bluetooth/bluetooth_utils.c
+ endif
+ 
++ifeq ($(USE_AMIITOOL),1)
++  USE_CRYPTO = 1
++  USE_SHA256 = 1
++  USE_AES = 1
++  DEFINES += -DUSE_AMIITOOL
++  INCLUDE += -I$(ROOT)/libs/amiitool/include
++  WRAPPERSOURCES += libs/amiitool/drbg.c \
++  libs/amiitool/keygen.c \
++  libs/amiitool/amiibo.c \
++  libs/amiitool/jswrap_amiitool.c
++endif
++
+ ifeq ($(USE_CRYPTO),1)
+   cryptofound:=$(shell if test -f make/crypto/$(FAMILY).make; then echo yes;fi)
+   ifeq ($(cryptofound),yes)
+diff --git a/libs/amiitool/amiibo.c b/libs/amiitool/amiibo.c
+new file mode 100644
+index 000000000..b528dab36
+--- /dev/null
++++ b/libs/amiitool/amiibo.c
+@@ -0,0 +1,132 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ * (c) 2016      javiMaD
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include "nfc3d/amiibo.h"
++#include "mbedtls/md.h"
++#include "mbedtls/aes.h"
++#include <errno.h>
++
++#define HMAC_POS_DATA 0x008
++#define HMAC_POS_TAG 0x1B4
++
++void nfc3d_amiibo_calc_seed(const uint8_t * dump, uint8_t * key) {
++	memcpy(key + 0x00, dump + 0x029, 0x02);
++	memset(key + 0x02, 0x00, 0x0E);
++	memcpy(key + 0x10, dump + 0x1D4, 0x08);
++	memcpy(key + 0x18, dump + 0x1D4, 0x08);
++	memcpy(key + 0x20, dump + 0x1E8, 0x20);
++}
++
++void nfc3d_amiibo_keygen(const nfc3d_keygen_masterkeys * masterKeys, const uint8_t * dump, nfc3d_keygen_derivedkeys * derivedKeys) {
++	uint8_t seed[NFC3D_KEYGEN_SEED_SIZE];
++
++	nfc3d_amiibo_calc_seed(dump, seed);
++	nfc3d_keygen(masterKeys, seed, derivedKeys);
++}
++
++void nfc3d_amiibo_cipher(const nfc3d_keygen_derivedkeys * keys, const uint8_t * in, uint8_t * out) {
++	mbedtls_aes_context aes;
++	size_t nc_off = 0;
++	unsigned char nonce_counter[16];
++	unsigned char stream_block[16];
++
++	mbedtls_aes_setkey_enc( &aes, keys->aesKey, 128 );
++	memset(nonce_counter, 0, sizeof(nonce_counter));
++	memset(stream_block, 0, sizeof(stream_block));
++	memcpy(nonce_counter, keys->aesIV, sizeof(nonce_counter));
++	mbedtls_aes_crypt_ctr( &aes, 0x188, &nc_off, nonce_counter, stream_block, in + 0x02C, out + 0x02C );
++
++	memcpy(out + 0x000, in + 0x000, 0x008);
++	// Data signature NOT copied
++	memcpy(out + 0x028, in + 0x028, 0x004);
++	// Tag signature NOT copied
++	memcpy(out + 0x1D4, in + 0x1D4, 0x034);
++}
++
++void nfc3d_amiibo_tag_to_internal(const uint8_t * tag, uint8_t * intl) {
++	memcpy(intl + 0x000, tag + 0x008, 0x008);
++	memcpy(intl + 0x008, tag + 0x080, 0x020);
++	memcpy(intl + 0x028, tag + 0x010, 0x024);
++	memcpy(intl + 0x04C, tag + 0x0A0, 0x168);
++	memcpy(intl + 0x1B4, tag + 0x034, 0x020);
++	memcpy(intl + 0x1D4, tag + 0x000, 0x008);
++	memcpy(intl + 0x1DC, tag + 0x054, 0x02C);
++}
++
++void nfc3d_amiibo_internal_to_tag(const uint8_t * intl, uint8_t * tag) {
++	memcpy(tag + 0x008, intl + 0x000, 0x008);
++	memcpy(tag + 0x080, intl + 0x008, 0x020);
++	memcpy(tag + 0x010, intl + 0x028, 0x024);
++	memcpy(tag + 0x0A0, intl + 0x04C, 0x168);
++	memcpy(tag + 0x034, intl + 0x1B4, 0x020);
++	memcpy(tag + 0x000, intl + 0x1D4, 0x008);
++	memcpy(tag + 0x054, intl + 0x1DC, 0x02C);
++}
++
++bool nfc3d_amiibo_unpack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * tag, uint8_t * plain) {
++	uint8_t internal[NFC3D_AMIIBO_SIZE];
++	nfc3d_keygen_derivedkeys dataKeys;
++	nfc3d_keygen_derivedkeys tagKeys;
++
++	// Convert format
++	nfc3d_amiibo_tag_to_internal(tag, internal);
++
++	// Generate keys
++	nfc3d_amiibo_keygen(&amiiboKeys->data, internal, &dataKeys);
++	nfc3d_amiibo_keygen(&amiiboKeys->tag, internal, &tagKeys);
++
++	// Decrypt
++	nfc3d_amiibo_cipher(&dataKeys, internal, plain);
++
++	// Regenerate tag HMAC. Note: order matters, data HMAC depends on tag HMAC!
++	mbedtls_md_hmac( mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), tagKeys.hmacKey, sizeof(tagKeys.hmacKey),
++			 plain + 0x1D4, 0x34, plain + HMAC_POS_TAG );
++
++	// Regenerate data HMAC
++	mbedtls_md_hmac( mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), dataKeys.hmacKey, sizeof(dataKeys.hmacKey),
++			 plain + 0x029, 0x1DF, plain + HMAC_POS_DATA );
++
++	return
++			memcmp(plain + HMAC_POS_DATA, internal + HMAC_POS_DATA, 32) == 0 &&
++			memcmp(plain + HMAC_POS_TAG, internal + HMAC_POS_TAG, 32) == 0;
++}
++
++void nfc3d_amiibo_pack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * plain, uint8_t * tag) {
++	uint8_t cipher[NFC3D_AMIIBO_SIZE];
++	nfc3d_keygen_derivedkeys tagKeys;
++	nfc3d_keygen_derivedkeys dataKeys;
++
++	// Generate keys
++	nfc3d_amiibo_keygen(&amiiboKeys->tag, plain, &tagKeys);
++	nfc3d_amiibo_keygen(&amiiboKeys->data, plain, &dataKeys);
++
++	// Generate tag HMAC
++	mbedtls_md_hmac( mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), tagKeys.hmacKey, sizeof(tagKeys.hmacKey),
++			 plain + 0x1D4, 0x34, cipher + HMAC_POS_TAG );
++
++	// Init mbedtls HMAC context
++	mbedtls_md_context_t ctx;
++	mbedtls_md_init( &ctx );
++	mbedtls_md_setup( &ctx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1 );
++
++	// Generate data HMAC
++	mbedtls_md_hmac_starts( &ctx, dataKeys.hmacKey, sizeof(dataKeys.hmacKey) );
++	mbedtls_md_hmac_update( &ctx, plain + 0x029, 0x18B ); // Data
++	mbedtls_md_hmac_update( &ctx, cipher + HMAC_POS_TAG, 0x20 ); // Tag HMAC
++	mbedtls_md_hmac_update( &ctx, plain + 0x1D4, 0x34 ); // Here be dragons
++
++	mbedtls_md_hmac_finish( &ctx, cipher + HMAC_POS_DATA );
++
++	// HMAC cleanup
++	mbedtls_md_free( &ctx );
++
++	// Encrypt
++	nfc3d_amiibo_cipher(&dataKeys, plain, cipher);
++
++	// Convert back to hardware
++	nfc3d_amiibo_internal_to_tag(cipher, tag);
++}
+diff --git a/libs/amiitool/amiitool.c b/libs/amiitool/amiitool.c
+new file mode 100644
+index 000000000..62a55fc6c
+--- /dev/null
++++ b/libs/amiitool/amiitool.c
+@@ -0,0 +1,172 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ * (c) 2016      javiMaD
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include <nfc3d/amiibo.h>
++#include <nfc3d/version.h>
++#include "util.h"
++#include <stdio.h>
++#include <string.h>
++#include <getopt.h>
++#include <errno.h>
++
++#define NTAG215_SIZE 540
++
++static char * self;
++
++void usage() {
++	fprintf(stderr,
++		"amiitool build %i (commit %s-%08x)\n"
++		"by Marcos Del Sol Vives <marcos@dracon.es>\n"
++		"\n"
++		"Usage: %s (-e|-d|-c) -k keyfile [-i input] [-s input2] [-o output]\n"
++		"   -e encrypt and sign amiibo\n"
++		"   -d decrypt and test amiibo\n"
++		"   -c decrypt, copy AppData and encrypt amiibo\n"
++		"   -k key set file. For retail amiibo, use \"retail unfixed\" key set\n"
++		"   -i input file. If not specified, stdin will be used.\n"
++		"   -s input save file, save from this file will replace input file ones.\n"
++		"   -o output file. If not specified, stdout will be used.\n"
++		"   -l decrypt files with invalid signatures.\n",
++		nfc3d_version_build(), nfc3d_version_fork(), nfc3d_version_commit(), self
++	);
++}
++
++int main(int argc, char ** argv) {
++	self = argv[0];
++
++	char * infile = NULL;
++	char * savefile = NULL;
++	char * outfile = NULL;
++	char * keyfile = NULL;
++	char op = '\0';
++	bool lenient = false;
++
++	char c;
++	while ((c = getopt(argc, argv, "edci:s:o:k:l")) != -1) {
++		switch (c) {
++			case 'e':
++			case 'd':
++			case 'c':
++				op = c;
++				break;
++			case 'i':
++				infile = optarg;
++				break;
++			case 's':
++				savefile = optarg;
++				break;
++			case 'o':
++				outfile = optarg;
++				break;
++			case 'k':
++				keyfile = optarg;
++				break;
++			case 'l':
++				lenient = true;
++				break;
++			default:
++				usage();
++				return 2;
++		}
++	}
++
++	if (op == '\0' || keyfile == NULL) {
++		usage();
++		return 1;
++	}
++
++	nfc3d_amiibo_keys amiiboKeys;
++	if (!nfc3d_amiibo_load_keys(&amiiboKeys, keyfile)) {
++		fprintf(stderr, "Could not load keys from \"%s\": %s (%d)\n", keyfile, strerror(errno), errno);
++		return 5;
++	}
++
++	uint8_t original[NTAG215_SIZE];
++	uint8_t modified[NFC3D_AMIIBO_SIZE];
++
++	FILE * f = stdin;
++	if (infile) {
++		f = fopen(infile, "rb");
++		if (!f) {
++			fprintf(stderr, "Could not open input file: %s (%d)\n", strerror(errno), errno);
++			return 3;
++		}
++	}
++	size_t readPages = fread(original, 4, NTAG215_SIZE / 4, f);
++	if (readPages < NFC3D_AMIIBO_SIZE / 4) {
++		fprintf(stderr, "Could not read from input: %s (%d)\n", strerror(errno), errno);
++		return 3;
++	}
++	fclose(f);
++
++
++	if (op == 'e') {
++		nfc3d_amiibo_pack(&amiiboKeys, original, modified);
++	} else if (op == 'd') {
++		if (!nfc3d_amiibo_unpack(&amiiboKeys, original, modified)) {
++			fprintf(stderr, "!!! WARNING !!!: Tag signature was NOT valid\n");
++			if (!lenient) {
++				return 6;
++			}
++		}
++	} else { /* copy */
++		uint8_t plain_base[NFC3D_AMIIBO_SIZE];
++		uint8_t plain_save[NFC3D_AMIIBO_SIZE];
++
++		if (!nfc3d_amiibo_unpack(&amiiboKeys, original, plain_base)) {
++			fprintf(stderr, "!!! WARNING !!!: Tag signature was NOT valid\n");
++			if (!lenient) {
++				return 6;
++			}
++		}
++		if (savefile) {
++			f = fopen(savefile, "rb");
++			if (!f) {
++				fprintf(stderr, "Could not open save file: %s (%d)\n", strerror(errno), errno);
++				return 3;
++			}
++		}
++		size_t readPages = fread(original, 4, NTAG215_SIZE / 4, f);
++		if (readPages < NFC3D_AMIIBO_SIZE / 4) {
++			fprintf(stderr, "Could not read from save: %s (%d)\n", strerror(errno), errno);
++			return 3;
++		}
++		fclose(f);
++
++		if (!nfc3d_amiibo_unpack(&amiiboKeys, original, plain_save)) {
++			fprintf(stderr, "!!! WARNING !!!: Tag signature was NOT valid\n");
++			if (!lenient) {
++				return 6;
++			}
++		}
++
++		nfc3d_amiibo_copy_app_data(plain_save, plain_base);
++		nfc3d_amiibo_pack(&amiiboKeys, plain_base, modified);
++	}
++
++	f = stdout;
++	if (outfile) {
++		f = fopen(outfile, "wb");
++		if (!f) {
++			fprintf(stderr, "Could not open output file: %s (%d)\n", strerror(errno), errno);
++			return 4;
++		}
++	}
++	if (fwrite(modified, NFC3D_AMIIBO_SIZE, 1, f) != 1) {
++		fprintf(stderr, "Could not write to output: %s (%d)\n", strerror(errno), errno);
++		return 4;
++	}
++	if (readPages > NFC3D_AMIIBO_SIZE / 4) {
++		if (fwrite(original + NFC3D_AMIIBO_SIZE, readPages * 4 - NFC3D_AMIIBO_SIZE, 1, f) != 1) {
++			fprintf(stderr, "Could not write to output: %s (%d)\n", strerror(errno), errno);
++			return 4;
++		}
++	}
++	fclose(f);
++
++	return 0;
++}
+diff --git a/libs/amiitool/drbg.c b/libs/amiitool/drbg.c
+new file mode 100644
+index 000000000..18a4c048a
+--- /dev/null
++++ b/libs/amiitool/drbg.c
+@@ -0,0 +1,78 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ * (c) 2016      javiMaD
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include "nfc3d/drbg.h"
++#include <assert.h>
++#include <string.h>
++#include "mbedtls/md.h"
++
++void nfc3d_drbg_init(nfc3d_drbg_ctx * ctx, const uint8_t * hmacKey, size_t hmacKeySize, const uint8_t * seed, size_t seedSize) {
++	assert(ctx != NULL);
++	assert(hmacKey != NULL);
++	assert(seed != NULL);
++	assert(seedSize <= NFC3D_DRBG_MAX_SEED_SIZE);
++
++	// Initialize primitives
++	ctx->used = false;
++	ctx->iteration = 0;
++	ctx->bufferSize = sizeof(ctx->iteration) + seedSize;
++
++	// The 16-bit counter is prepended to the seed when hashing, so we'll leave 2 bytes at the start
++	memcpy(ctx->buffer + sizeof(uint16_t), seed, seedSize);
++
++	// Initialize underlying HMAC context
++	mbedtls_md_init(&ctx->hmacCtx);
++	mbedtls_md_setup(&ctx->hmacCtx, mbedtls_md_info_from_type(MBEDTLS_MD_SHA256), 1);
++	mbedtls_md_hmac_starts(&ctx->hmacCtx, hmacKey, hmacKeySize);
++}
++
++void nfc3d_drbg_step(nfc3d_drbg_ctx * ctx, uint8_t * output) {
++	assert(ctx != NULL);
++	assert(output != NULL);
++
++	if (ctx->used) {
++		// If used at least once, reinitialize the HMAC
++		mbedtls_md_hmac_reset(&ctx->hmacCtx);
++	} else {
++		ctx->used = true;
++	}
++
++	// Store counter in big endian, and increment it
++	ctx->buffer[0] = ctx->iteration >> 8;
++	ctx->buffer[1] = ctx->iteration >> 0;
++	ctx->iteration++;
++
++	// Do HMAC magic
++	mbedtls_md_hmac_update(&ctx->hmacCtx, ctx->buffer, ctx->bufferSize);
++	mbedtls_md_hmac_finish(&ctx->hmacCtx, output);
++}
++
++void nfc3d_drbg_cleanup(nfc3d_drbg_ctx * ctx) {
++	assert(ctx != NULL);
++	mbedtls_md_free(&ctx->hmacCtx);
++}
++
++void nfc3d_drbg_generate_bytes(const uint8_t * hmacKey, size_t hmacKeySize, const uint8_t * seed, size_t seedSize, uint8_t * output, size_t outputSize) {
++	uint8_t temp[NFC3D_DRBG_OUTPUT_SIZE];
++
++	nfc3d_drbg_ctx rngCtx;
++	nfc3d_drbg_init(&rngCtx, hmacKey, hmacKeySize, seed, seedSize);
++
++	while (outputSize > 0) {
++		if (outputSize < NFC3D_DRBG_OUTPUT_SIZE) {
++			nfc3d_drbg_step(&rngCtx, temp);
++			memcpy(output, temp, outputSize);
++			break;
++		}
++
++		nfc3d_drbg_step(&rngCtx, output);
++		output += NFC3D_DRBG_OUTPUT_SIZE;
++		outputSize -= NFC3D_DRBG_OUTPUT_SIZE;
++	}
++
++	nfc3d_drbg_cleanup(&rngCtx);
++}
+diff --git a/libs/amiitool/include/nfc3d/amiibo.h b/libs/amiitool/include/nfc3d/amiibo.h
+new file mode 100644
+index 000000000..7f8eb4f86
+--- /dev/null
++++ b/libs/amiitool/include/nfc3d/amiibo.h
+@@ -0,0 +1,30 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ * (c) 2016      javiMaD
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#ifndef HAVE_NFC3D_AMIIBO_H
++#define HAVE_NFC3D_AMIIBO_H
++
++#include <stdint.h>
++#include <stdbool.h>
++#include "keygen.h"
++
++#define NFC3D_AMIIBO_SIZE 520
++
++#pragma pack(1)
++typedef struct {
++	nfc3d_keygen_masterkeys data;
++	nfc3d_keygen_masterkeys tag;
++} nfc3d_amiibo_keys;
++#pragma pack()
++
++bool nfc3d_amiibo_unpack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * tag, uint8_t * plain);
++void nfc3d_amiibo_pack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * plain, uint8_t * tag);
++bool nfc3d_amiibo_load_keys(nfc3d_amiibo_keys * amiiboKeys, const char * path);
++void nfc3d_amiibo_copy_app_data(const uint8_t * src, uint8_t * dst);
++void nfc3d_amiibo_tag_to_internal(const uint8_t * tag, uint8_t * intl);
++void nfc3d_amiibo_internal_to_tag(const uint8_t * intl, uint8_t * tag);
++#endif
+diff --git a/libs/amiitool/include/nfc3d/drbg.h b/libs/amiitool/include/nfc3d/drbg.h
+new file mode 100644
+index 000000000..ef9081a2b
+--- /dev/null
++++ b/libs/amiitool/include/nfc3d/drbg.h
+@@ -0,0 +1,32 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ * (c) 2016      javiMaD
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#ifndef HAVE_NFC3D_DRBG_H
++#define HAVE_NFC3D_DRBG_H
++
++#include <stdbool.h>
++#include <stdint.h>
++#include "mbedtls/md.h"
++
++#define NFC3D_DRBG_MAX_SEED_SIZE	480	/* Hardcoded max size in 3DS NFC module */
++#define NFC3D_DRBG_OUTPUT_SIZE		32	/* Every iteration generates 32 bytes */
++
++typedef struct {
++	mbedtls_md_context_t hmacCtx;
++	bool used;
++	uint16_t iteration;
++
++	uint8_t buffer[sizeof(uint16_t) + NFC3D_DRBG_MAX_SEED_SIZE];
++	size_t bufferSize;
++} nfc3d_drbg_ctx;
++
++void nfc3d_drbg_init(nfc3d_drbg_ctx * ctx, const uint8_t * hmacKey, size_t hmacKeySize, const uint8_t * seed, size_t seedSize);
++void nfc3d_drbg_step(nfc3d_drbg_ctx * ctx, uint8_t * output);
++void nfc3d_drbg_cleanup(nfc3d_drbg_ctx * ctx);
++void nfc3d_drbg_generate_bytes(const uint8_t * hmacKey, size_t hmacKeySize, const uint8_t * seed, size_t seedSize, uint8_t * output, size_t outputSize);
++
++#endif
+diff --git a/libs/amiitool/include/nfc3d/keygen.h b/libs/amiitool/include/nfc3d/keygen.h
+new file mode 100644
+index 000000000..35595e3ef
+--- /dev/null
++++ b/libs/amiitool/include/nfc3d/keygen.h
+@@ -0,0 +1,34 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#ifndef HAVE_NFC3D_KEYGEN_H
++#define HAVE_NFC3D_KEYGEN_H
++
++#include <stdint.h>
++#include <stdbool.h>
++
++#define NFC3D_KEYGEN_SEED_SIZE 64
++
++#pragma pack(1)
++typedef struct {
++	uint8_t hmacKey[16];
++	char typeString[14];
++	uint8_t rfu;
++	uint8_t magicBytesSize;
++	uint8_t magicBytes[16];
++	uint8_t xorPad[32];
++} nfc3d_keygen_masterkeys;
++
++typedef struct {
++	const uint8_t aesKey[16];
++	const uint8_t aesIV[16];
++	const uint8_t hmacKey[16];
++} nfc3d_keygen_derivedkeys;
++#pragma pack()
++
++void nfc3d_keygen(const nfc3d_keygen_masterkeys * baseKeys, const uint8_t * baseSeed, nfc3d_keygen_derivedkeys * derivedKeys);
++
++#endif
+diff --git a/libs/amiitool/jswrap_amiitool.c b/libs/amiitool/jswrap_amiitool.c
+new file mode 100644
+index 000000000..d3ed9f215
+--- /dev/null
++++ b/libs/amiitool/jswrap_amiitool.c
+@@ -0,0 +1,187 @@
++#ifdef USE_AMIITOOL
++#include "jswrap_ntag215.h"
++#include "jsinteractive.h"
++#include "nfc3d/amiibo.h"
++
++/*JSON{
++  "type" : "class",
++  "class" : "amiitool",
++  "ifdef" : "USE_AMIITOOL"
++}
++Amiitool.
++*/
++
++/*JSON{
++  "type" : "staticmethod",
++  "class" : "amiitool",
++  "name" : "unpack",
++  "generate" : "jswrap_amiitool_unpack",
++  "ifdef" : "USE_AMIITOOL",
++  "params" : [
++    ["key","JsVar","A UInt8Array containing the contents of key_retail.bin."],
++    ["data","JsVar","A UInt8Array containing the encrypted tag data."]
++  ],
++  "return" : ["bool", "If the hmac hash matched."]
++}*/
++bool jswrap_amiitool_unpack(JsVar *key, JsVar *data){
++  if (!jsvIsArrayBuffer(key)) {
++    jsExceptionHere(JSET_ERROR, "Key is not an array buffer.");
++    return;
++  }
++
++  if (!jsvIsArrayBuffer(data)) {
++    jsExceptionHere(JSET_ERROR, "Data is not an array buffer.");
++    return;
++  }
++
++  size_t keyLength=0;
++  char *keyPointer = jsvGetDataPointer(key, &keyLength);
++
++  if (keyPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from key array.");
++    return;
++  }
++
++  size_t dataLength=0;
++  char *dataPointer = jsvGetDataPointer(data, &dataLength);
++
++  if (dataPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from data array.");
++    return;
++  }
++
++  if (dataLength < NFC3D_AMIIBO_SIZE) {
++    jsExceptionHere(JSET_ERROR, "Data is not at least 520 bytes");
++  }
++
++  char newData[NFC3D_AMIIBO_SIZE];
++
++  bool unpack_ret = nfc3d_amiibo_unpack(keyPointer, dataPointer, &newData[0]);
++
++  memcpy(dataPointer, &newData[0], NFC3D_AMIIBO_SIZE);
++
++  return unpack_ret == true;
++}
++
++/*JSON{
++  "type" : "staticmethod",
++  "class" : "amiitool",
++  "name" : "pack",
++  "generate" : "jswrap_amiitool_pack",
++  "ifdef" : "USE_AMIITOOL",
++  "params" : [
++    ["key","JsVar","A UInt8Array containing the contents of key_retail.bin."],
++    ["data","JsVar","A UInt8Array containing the decrypted tag data."]
++  ]
++}*/
++void jswrap_amiitool_pack(JsVar *key, JsVar *data){
++  if (!jsvIsArrayBuffer(key)) {
++    jsExceptionHere(JSET_ERROR, "Key is not an array buffer.");
++    return;
++  }
++
++  if (!jsvIsArrayBuffer(data)) {
++    jsExceptionHere(JSET_ERROR, "Data is not an array buffer.");
++    return;
++  }
++
++  size_t keyLength=0;
++  char *keyPointer = jsvGetDataPointer(key, &keyLength);
++
++  if (keyPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from key array.");
++    return;
++  }
++
++  size_t dataLength=0;
++  char *dataPointer = jsvGetDataPointer(data, &dataLength);
++
++  if (dataPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from data array.");
++    return;
++  }
++
++  if (dataLength < NFC3D_AMIIBO_SIZE) {
++    jsExceptionHere(JSET_ERROR, "Data is not at least 520 bytes");
++  }
++
++  char newData[NFC3D_AMIIBO_SIZE];
++
++  nfc3d_amiibo_pack(keyPointer, dataPointer, &newData[0]);
++
++  memcpy(dataPointer, &newData[0], NFC3D_AMIIBO_SIZE);
++}
++
++/*JSON{
++  "type" : "staticmethod",
++  "class" : "amiitool",
++  "name" : "internalToTag",
++  "generate" : "jswrap_amiitool_internal_to_tag",
++  "ifdef" : "USE_AMIITOOL",
++  "params" : [
++    ["data","JsVar","A UInt8Array containing the data."]
++  ]
++}*/
++void jswrap_amiitool_internal_to_tag(JsVar *data){
++  if (!jsvIsArrayBuffer(data)) {
++    jsExceptionHere(JSET_ERROR, "Data is not an array buffer.");
++    return;
++  }
++
++  size_t dataLength=0;
++  char *dataPointer = jsvGetDataPointer(data, &dataLength);
++
++  if (dataPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from data array.");
++    return;
++  }
++
++  if (dataLength < NFC3D_AMIIBO_SIZE) {
++    jsExceptionHere(JSET_ERROR, "Data is not at least 520 bytes");
++  }
++
++  char newData[NFC3D_AMIIBO_SIZE];
++
++  nfc3d_amiibo_internal_to_tag(dataPointer, &newData[0]);
++
++  memcpy(dataPointer, &newData[0], NFC3D_AMIIBO_SIZE);
++}
++
++/*JSON{
++  "type" : "staticmethod",
++  "class" : "amiitool",
++  "name" : "tagToInternal",
++  "generate" : "jswrap_amiitool_tag_to_internal",
++  "ifdef" : "USE_AMIITOOL",
++  "params" : [
++    ["data","JsVar","A UInt8Array containing the data."]
++  ]
++}*/
++void jswrap_amiitool_tag_to_internal(JsVar *data){
++  if (!jsvIsArrayBuffer(data)) {
++    jsExceptionHere(JSET_ERROR, "Data is not an array buffer.");
++    return;
++  }
++
++  size_t dataLength=0;
++  char *dataPointer = jsvGetDataPointer(data, &dataLength);
++
++  if (dataPointer == 0) {
++    jsExceptionHere(JSET_ERROR, "Failed to get flat string from data array.");
++    return;
++  }
++
++  if (dataLength < NFC3D_AMIIBO_SIZE) {
++    jsExceptionHere(JSET_ERROR, "Data is not at least 520 bytes");
++  }
++
++  char newData[NFC3D_AMIIBO_SIZE];
++
++  nfc3d_amiibo_tag_to_internal(dataPointer, &newData[0]);
++
++  memcpy(dataPointer, &newData[0], NFC3D_AMIIBO_SIZE);
++}
++#endif
++
++//bool nfc3d_amiibo_unpack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * tag, uint8_t * plain);
++//void nfc3d_amiibo_pack(const nfc3d_amiibo_keys * amiiboKeys, const uint8_t * plain, uint8_t * tag);
+diff --git a/libs/amiitool/jswrap_amiitool.h b/libs/amiitool/jswrap_amiitool.h
+new file mode 100644
+index 000000000..0427e2c76
+--- /dev/null
++++ b/libs/amiitool/jswrap_amiitool.h
+@@ -0,0 +1,10 @@
++#ifdef USE_AMIITOOL
++#include <stdint.h>
++#include <stdbool.h>
++#include "jsinteractive.h"
++
++bool jswrap_amiitool_unpack(JsVar *, JsVar *);
++void jswrap_amiitool_pack(JsVar *, JsVar *);
++void jswrap_amiitool_internal_to_tag(JsVar *);
++void jswrap_amiitool_tag_to_internal(JsVar *);
++#endif
+diff --git a/libs/amiitool/keygen.c b/libs/amiitool/keygen.c
+new file mode 100644
+index 000000000..209096992
+--- /dev/null
++++ b/libs/amiitool/keygen.c
+@@ -0,0 +1,53 @@
++/*
++ * (c) 2015-2017 Marcos Del Sol Vives
++ *
++ * SPDX-License-Identifier: MIT
++ */
++
++#include "nfc3d/drbg.h"
++#include "nfc3d/keygen.h"
++#include <assert.h>
++#include <stdio.h>
++#include <string.h>
++
++void nfc3d_keygen_prepare_seed(const nfc3d_keygen_masterkeys * baseKeys, const uint8_t * baseSeed, uint8_t * output, size_t * outputSize) {
++	assert(baseKeys != NULL);
++	assert(baseSeed != NULL);
++	assert(output != NULL);
++	assert(outputSize != NULL);
++
++	uint8_t * start = output;
++
++	// 1: Copy whole type string
++	output = memccpy(output, baseKeys->typeString, '\0', sizeof(baseKeys->typeString));
++
++	// 2: Append (16 - magicBytesSize) from the input seed
++	size_t leadingSeedBytes = 16 - baseKeys->magicBytesSize;
++	memcpy(output, baseSeed, leadingSeedBytes);
++	output += leadingSeedBytes;
++
++	// 3: Append all bytes from magicBytes
++	memcpy(output, baseKeys->magicBytes, baseKeys->magicBytesSize);
++	output += baseKeys->magicBytesSize;
++
++	// 4: Append bytes 0x10-0x1F from input seed
++	memcpy(output, baseSeed + 0x10, 16);
++	output += 16;
++
++	// 5: Xor last bytes 0x20-0x3F of input seed with AES XOR pad and append them
++	unsigned int i;
++	for (i = 0; i < 32; i++) {
++		output[i] = baseSeed[i + 32] ^ baseKeys->xorPad[i];
++	}
++	output += 32;
++
++	*outputSize = output - start;
++}
++
++void nfc3d_keygen(const nfc3d_keygen_masterkeys * baseKeys, const uint8_t * baseSeed, nfc3d_keygen_derivedkeys * derivedKeys) {
++	uint8_t preparedSeed[NFC3D_DRBG_MAX_SEED_SIZE];
++	size_t preparedSeedSize;
++
++	nfc3d_keygen_prepare_seed(baseKeys, baseSeed, preparedSeed, &preparedSeedSize);
++	nfc3d_drbg_generate_bytes(baseKeys->hmacKey, sizeof(baseKeys->hmacKey), preparedSeed, preparedSeedSize, (uint8_t *) derivedKeys, sizeof(*derivedKeys));
++}
+-- 
+2.36.0.windows.1
+
