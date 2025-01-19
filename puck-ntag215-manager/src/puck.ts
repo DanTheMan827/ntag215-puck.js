@@ -1,4 +1,5 @@
 import { sleep } from "./sleep"
+import { formatHexData } from "./formatHexData"
 import { NORDIC_RX, NORDIC_SERVICE, NORDIC_TX } from "./uart/nordic"
 
 export const PUCK_SERVICE = "78290001-d52e-473f-a9f4-f03da7c67dd1"
@@ -101,6 +102,7 @@ export class Puck {
       }
 
       const finishName = (ev: CharacteristicEvent) => {
+        console.log(`Received: \n${formatHexData(new Uint8Array(this.returnCharacteristic.value.buffer))}`)
         if (count > 0) {
           const response = new Uint8Array(this.returnCharacteristic.value.buffer)
 
@@ -128,7 +130,9 @@ export class Puck {
 
       for (var i = 0; i < bytes.length; i = i + this.packetSize) {
         resetTimeout()
-        await this.commandCharacteristic.writeValueWithResponse(bytes.slice(i, i + this.packetSize))
+        const data = bytes.slice(i, i + this.packetSize)
+        console.log(`Sending: \n${formatHexData(data)}`)
+        await this.commandCharacteristic.writeValueWithResponse(data)
       }
     })
   }

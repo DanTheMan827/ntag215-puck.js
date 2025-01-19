@@ -125,19 +125,6 @@ Writes a full slot. The command should be sent as one BLE packet, then an acknow
 
 ---
 
-#### 0x06 - Full Read
-
-Reads all data from a specified slot.
-
-**Parameters:**
-- `slot`: The slot number to read from. If the slot is out of range, the current slot is used.
-
-**Returns:**
-- The command, slot used, four bytes for a CRC32 checksum encoded in little-endian, and the 572 bytes of data.
-- Total number of bytes: 578.
-
----
-
 #### 0xFA - Get Bluetooth Name
 
 Requests the Bluetooth name.

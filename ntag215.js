@@ -126,16 +126,6 @@ const COMMAND_SAVE = 0x04;
 const COMMAND_FULL_WRITE = 0x05;
 
 /**
- * Reads all data from a specified slot.
- * @value 0x06
- * @param {number} slot - The slot number to read from. If the slot is out of range, the current slot is used.
- * @returns The command, slot used, four bytes for a CRC32 checksum encoded in little-endian, and the 572 bytes of data.
- *
- *          Total number of bytes: 578
- */
-const COMMAND_FULL_READ = 0x06;
-
-/**
  * Requests the Bluetooth name. Returns the name followed by a null terminator.
  * @value 0xFA
  * @returns The name, and a null terminator.
@@ -548,7 +538,7 @@ function flashLed(led, interval, times, callback) {
  * @returns {Uint8Array} A Uint8Array containing the CRC32 checksum bytes in little-endian order.
  */
 function getCRC32(data) {
-  let crc32 = E.CRC32(data);
+  const crc32 = E.CRC32(data);
   return new Uint8Array([
       crc32 & 0xFF,
       (crc32 >> 8) & 0xFF,
@@ -766,7 +756,8 @@ function fastRx(data) {
     oldSlot,
     newSlot,
     response,
-    nullIdx;
+    nullIdx,
+    crc32;
 
   if (data.length > 0) {
     switch (data[0]) {
@@ -847,15 +838,15 @@ function fastRx(data) {
         crc32 = null;
 
         if (data.length == 6) {
-          crc32 = Uint8Array(data.slice(2, 6));
+          crc32 = data.slice(2, 6);
         }
 
         _setTimeout(function() {
           rxBytes(572, (rxData) => {
-            var receivedCrc32 = getCRC32(rxData);
+            const receivedCrc32 = getCRC32(rxData);
 
             // Only store the tag if the target CRC32 is not set, or if the received CRC32 matches the target.
-            if (crc32 == null || !compareArrays(crc32, receivedCrc32)) {
+            if (crc32 === null || compareArrays(crc32, receivedCrc32)) {
               getTag(slot).set(rxData, 0, 0);
             }
 
@@ -864,17 +855,6 @@ function fastRx(data) {
 
           _Bluetooth.write(data);
         }, 0);
-
-        return;
-
-      case COMMAND_FULL_READ: //Full Read <Slot>
-        slot = data[1] < tags.length ? data[1] : currentTag;
-        var tagData = getTag(slot);
-        var crc32 = getCRC32(tagData);
-
-        _Bluetooth.write([COMMAND_FULL_READ, slot]);
-        _Bluetooth.write(crc32);
-        _Bluetooth.write(tagData);
 
         return;
 
