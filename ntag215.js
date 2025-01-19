@@ -51,6 +51,133 @@ const FAST_MODE_STRING = "DTM_PUCK_FAST";
 const BOARD = process.env.BOARD;
 // #endregion
 
+// #region Commands
+/**
+ * Tests BLE packet transmission.
+ * @value 0x00
+ * @param {number} [bytes] - An optional byte indicating the number of bytes to send back.
+ * @returns The number of bytes requested, or 255 if not specified.
+ */
+const COMMAND_BLE_PACKET_TEST = 0x00;
+
+/**
+ * A dual-purpose command that can be used to get a subset of data for identifying the tag, or to get the current slot number and the total number of slots.
+ * @value 0x01
+ * @param {number} [slot] - An optional byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ * @returns If the slot is not specified, returns one byte indicating the command, the current slot number, and the total number of slots.
+ *
+ *          If the slot is specified, returns one byte indicating the command, the slot number used, and then 80 bytes of data made from the following code:
+ *          ```javascript
+ *          var output = Uint8Array(80);
+ *          output.set(tags[slot].buffer.slice(0, 8), 0);
+ *          output.set(tags[slot].buffer.slice(16, 24), 8);
+ *          output.set(tags[slot].buffer.slice(32, 52), 20);
+ *          output.set(tags[slot].buffer.slice(84, 92), 40);
+ *          output.set(tags[slot].buffer.slice(96, 128), 48);
+ *          ```
+ */
+const COMMAND_SLOT_INFORMATION = 0x01;
+
+/**
+ * Reads data from a slot. Expects slot number, start page, and page count bytes.
+ * @value 0x02
+ * @param {number} slot - A byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ * @param {number} startPage - A byte indicating the start page.
+ * @param {number} pageCount - A byte indicating the number of pages to read.
+ * @returns One byte indicating the command, the slot number used, the start page, the page count, and then the data.
+ *
+ *          Total number of bytes: 4 + (pageCount * 4)
+ */
+const COMMAND_READ = 0x02;
+
+/**
+ * Writes data to a slot. Expects slot number, start page, and data bytes.
+ * @value 0x03
+ * @param {number} slot - A byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ * @param {number} startPage - A byte indicating the start page.
+ * @param {Uint8Array} data - The data to write.
+ * @returns Bytes indicating the command, the slot number used, and the start page.
+ *
+ *          Total number of bytes: 3
+ */
+const COMMAND_WRITE = 0x03;
+
+/**
+ * Saves the slot.  If {@link SAVE_TO_FLASH} is true, this will save the slot to flash, otherwise it will do nothing.
+ *
+ * This always should be called after {@link COMMAND_WRITE} or {@link COMMAND_FULL_WRITE}.
+ * @value 0x04
+ * @param {number} [slot] - A byte indicating the slot number.  If out of range, the current slot is used.
+ * @returns The initial command data sent.  This can be ignored and is only sent to acknowledge the command.
+ */
+const COMMAND_SAVE = 0x04;
+
+/**
+ * Writes a full slot. The command should be sent as one BLE packet, then an acknowledgement will be sent back consisting of the command and the slot.
+ *
+ * After the acknowledgement, exactly 572 bytes should be sent.
+ *
+ * This command will wait until all data has been received before more commands can be executed.
+ * @value 0x05
+ * @param {number} slot - The slot number to write to.
+ * @param {number} crc32 - The CRC32 checksum of the data encoded as four bytes in little-endian format.  If not specified, the data won't be validated.  If this is incorrect, the data will be rejected.
+ * @returns Bytes indicating the command, slot, and the CRC32 checksum of the received data encoded as four bytes in little-endian format.
+ */
+const COMMAND_FULL_WRITE = 0x05;
+
+/**
+ * Reads all data from a specified slot.
+ * @value 0x06
+ * @param {number} slot - The slot number to read from. If the slot is out of range, the current slot is used.
+ * @returns The command, slot used, four bytes for a CRC32 checksum encoded in little-endian, and the 572 bytes of data.
+ *
+ *          Total number of bytes: 578
+ */
+const COMMAND_FULL_READ = 0x06;
+
+/**
+ * Requests the Bluetooth name. Returns the name followed by a null terminator.
+ * @value 0xFA
+ * @returns The name, and a null terminator.
+ */
+const COMMAND_GET_BLUETOOTH_NAME = 0xFA;
+
+/**
+ * Sets the Bluetooth name. Expects the name bytes followed by a null terminator.
+ * @value 0xFB
+ * @returns The command data sent.
+ */
+const COMMAND_SET_BLUETOOTH_NAME = 0xFB;
+
+/**
+ * Requests the firmware name
+ * @value 0xFC
+ * @returns The firmware name, and a null terminator.
+ */
+const COMMAND_GET_FIRMWARE = 0xFC;
+
+/**
+ * Moves one slot to another slot.
+ * @value 0xFD
+ * @param {number} from - A byte indicating the slot to move from.
+ * @param {number} to - A byte indicating the slot to move to.
+ */
+const COMMAND_MOVE_SLOT = 0xFD;
+
+/**
+ * Immediately enables the BLE UART console. Any data received after should be processed as the espruino console.
+ * @value 0xFE
+ */
+const COMMAND_ENABLE_BLE_UART = 0xFE;
+
+/**
+ * Restarts NFC. This should be called after a tag has been written if it was written to the currently active slot.
+ * @value 0xFF
+ * @param {number} [slot] - An optional byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ */
+const COMMAND_RESTART_NFC = 0xFF;
+// #endregion
+
 // #region Modules
 /**
  * The `Storage` module.
@@ -247,7 +374,9 @@ function getTag(slot) {
 /**
  * This function returns a select subset of information that can be used to indentify an amiibo character and nickname.
  * @param {number} slot - The desired slot.
- * @returns  {Uint8Array} - A subset of tag tag from 0x00 - 0x08, 0x10 - 0x18, 0x20 - 0x34, 0x54 - 0x5C, 0x60 - 0x80
+ * @returns  {Uint8Array} - A subset of tag tag from 0x00 - 0x08, 0x10 - 0x18, 0x20 - 0x34, 0x54 - 0x5C, 0x60 - 0x80.
+ *
+ *                          Total number of bytes: 80
  */
 function getTagInfo(slot) {
   const output = Uint8Array(80);
@@ -410,6 +539,42 @@ function flashLed(led, interval, times, callback) {
       return;
     }
   }
+}
+
+/**
+ * Computes the CRC32 checksum of the given data and returns it as a Uint8Array.
+ *
+ * @param {string|Uint8Array} data - The data to compute the CRC32 checksum for. Can be a string or a Uint8Array.
+ * @returns {Uint8Array} A Uint8Array containing the CRC32 checksum bytes in little-endian order.
+ */
+function getCRC32(data) {
+  let crc32 = E.CRC32(data);
+  return new Uint8Array([
+      crc32 & 0xFF,
+      (crc32 >> 8) & 0xFF,
+      (crc32 >> 16) & 0xFF,
+      (crc32 >> 24) & 0xFF
+  ]);
+}
+
+
+/**
+ * Compares the sequence of two arrays to check if they are identical.
+ *
+ * @param {Array} arr1 - The first array to compare.
+ * @param {Array} arr2 - The second array to compare.
+ * @returns {boolean} True if both arrays have the same sequence of elements, false otherwise.
+ */
+function compareArrays(arr1, arr2) {
+  if (arr1.length !== arr2.length) {
+      return false;
+  }
+  for (let i = 0; i < arr1.length; i++) {
+      if (arr1[i] !== arr2[i]) {
+          return false;
+      }
+  }
+  return true;
 }
 
 /**
@@ -605,28 +770,27 @@ function fastRx(data) {
 
   if (data.length > 0) {
     switch (data[0]) {
-      case 0x00: //BLE Packet Test
+      case COMMAND_BLE_PACKET_TEST: //BLE Packet Test
         _Bluetooth.write(new Uint8Array(data.length > 1 ? data[1] : 255));
 
         return;
 
-      case 0x01: //Slot Information <Slot>
+      case COMMAND_SLOT_INFORMATION: //Slot Information <Slot>
         if (data.length > 1) {
           //Returns a subset of data for identifying
           slot = data[1] < tags.length ? data[1] : currentTag;
           var tagData = getTagInfo(slot);
 
-          _Bluetooth.write(new Uint8Array(data, 0, 2));
-          _Bluetooth.write([slot]);
+          _Bluetooth.write([COMMAND_SLOT_INFORMATION, slot]);
           _Bluetooth.write(tagData);
         } else {
           //Returns 0x01 <Current Slot> <Slot Count>
-          _Bluetooth.write([0x01, currentTag, tags.length]);
+          _Bluetooth.write([COMMAND_SLOT_INFORMATION, currentTag, tags.length]);
         }
 
         return;
 
-      case 0x02: //Read <Slot> <StartPage> <PageCount>
+      case COMMAND_READ: //Read <Slot> <StartPage> <PageCount>
         //Max pages: 143
         //Returns 0x02 <Slot> <StartPage> <PageCount> <Data>
         startIdx = data[2] * 4;
@@ -647,7 +811,7 @@ function fastRx(data) {
 
         return;
 
-      case 0x03: //Write <Slot> <StartPage> <Data>
+      case COMMAND_WRITE: //Write <Slot> <StartPage> <Data>
         startIdx = data[2] * 4;
         dataSize = data.length - 3;
         slot = data[1] < tags.length ? data[1] : currentTag;
@@ -663,27 +827,39 @@ function fastRx(data) {
           getTag(slot).set(new Uint8Array(data.buffer, 3, dataSize), startIdx);
         }
 
-        _Bluetooth.write(new Uint8Array(data, 0, 3));
+        _Bluetooth.write([COMMAND_WRITE, slot, data[2]]);
 
         return;
 
-      case 0x04: //Save <Slot>
+      case COMMAND_SAVE: //Save <Slot>
         if (SAVE_TO_FLASH) {
           slot = data[1] < tags.length ? data[1] : currentTag;
 
           saveTag(slot);
         }
 
-        break;
+        _Bluetooth.write([COMMAND_SAVE, data[1]]);
 
-      case 0x05: //Full Write <Slot>
+        return;
+
+      case COMMAND_FULL_WRITE: //Full Write <Slot>
         slot = data[1];
+        crc32 = null;
+
+        if (data.length == 6) {
+          crc32 = Uint8Array(data.slice(2, 6));
+        }
 
         _setTimeout(function() {
           rxBytes(572, (rxData) => {
-            getTag(slot).set(rxData, 0, 0);
+            var receivedCrc32 = getCRC32(rxData);
 
-            _Bluetooth.write(data);
+            // Only store the tag if the target CRC32 is not set, or if the received CRC32 matches the target.
+            if (crc32 == null || !compareArrays(crc32, receivedCrc32)) {
+              getTag(slot).set(rxData, 0, 0);
+            }
+
+            _Bluetooth.write([COMMAND_FULL_WRITE, slot, receivedCrc32[0], receivedCrc32[1], receivedCrc32[2], receivedCrc32[3]]);
           });
 
           _Bluetooth.write(data);
@@ -691,32 +867,48 @@ function fastRx(data) {
 
         return;
 
-      case 0xFA: //Get Bluetooth Name
+      case COMMAND_FULL_READ: //Full Read <Slot>
+        slot = data[1] < tags.length ? data[1] : currentTag;
+        var tagData = getTag(slot);
+        var crc32 = getCRC32(tagData);
+
+        _Bluetooth.write([COMMAND_FULL_READ, slot]);
+        _Bluetooth.write(crc32);
+        _Bluetooth.write(tagData);
+
+        return;
+
+      case COMMAND_GET_BLUETOOTH_NAME: //Get Bluetooth Name
         //Returns the bluetooth name, followed by a null terminator.
         _Bluetooth.write(storage.readArrayBuffer(PUCK_NAME_FILE));
         _Bluetooth.write([0]); // Null terminator
+
         return;
 
-      case 0xFB: //Set Bluetooth Name
+      case COMMAND_SET_BLUETOOTH_NAME: //Set Bluetooth Name
+        // Get the index of the null terminator.
         nullIdx = data.indexOf(0);
 
+        // If the null terminator is not found, set it to the end of the data.
         if (nullIdx == -1) {
           nullIdx = data.length - 1;
         }
 
+        // Write the name to flash.
         if (nullIdx > 1) {
           storage.write(PUCK_NAME_FILE, data.slice(1, nullIdx));
         } else {
           storage.erase(PUCK_NAME_FILE);
         }
 
+        // Update the Bluetooth name.
         NRF.setAdvertising({}, {
           name: getBufferClone(storage.readArrayBuffer(PUCK_NAME_FILE))
         });
 
         break;
 
-      case 0xFC: //Get Firmware
+      case COMMAND_GET_FIRMWARE: //Get Firmware
         if (ENABLE_LOG) {
           _consoleLog("Firmware Name:", FIRMWARE_NAME);
         }
@@ -726,7 +918,7 @@ function fastRx(data) {
 
         return;
 
-      case 0xFD: //Move slot <From> <To>
+      case COMMAND_MOVE_SLOT: //Move slot <From> <To>
         oldSlot = data[1];
         newSlot = data[2];
         if (oldSlot < tags.length && newSlot < tags.length) {
@@ -736,12 +928,12 @@ function fastRx(data) {
 
         break;
 
-      case 0xFE: //Enable BLE UART
-        _Bluetooth.setConsole();
+      case COMMAND_ENABLE_BLE_UART: //Enable BLE UART
+        onFastModeDisconnect();
 
-        break;
+        return;
 
-      case 0xFF: //Restart NFC <Slot?>
+      case COMMAND_RESTART_NFC: //Restart NFC <Slot?>
         if (data.length > 1) {
           changeTag(data[1] >= tags.length ? 0 : data[1]);
         } else {
@@ -749,6 +941,11 @@ function fastRx(data) {
         }
 
         break;
+
+      default:
+        _Bluetooth.write("Bad Command");
+
+        return;
     }
   }
 
