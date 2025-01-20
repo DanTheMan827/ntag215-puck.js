@@ -32,7 +32,7 @@ const FAST_MODE_CONSOLE = null;
 /**
  * The name of the script.
  */
-const FIRMWARE_NAME = "dtm-2.2.0";
+const FIRMWARE_NAME = "dtm-2.3.0";
 
 /**
  * The file name in flash used to store the bluetooth device name.
@@ -64,6 +64,7 @@ const COMMAND_BLE_PACKET_TEST = 0x00;
  * A dual-purpose command that can be used to get a subset of data for identifying the tag, or to get the current slot number and the total number of slots.
  * @value 0x01
  * @param {number} [slot] - An optional byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ * @param {number} [count] - An optional byte indicating the number of slots to read.  This requires that the slot be specified.
  * @returns If the slot is not specified, returns one byte indicating the command, the current slot number, and the total number of slots.
  *
  *          If the slot is specified, returns one byte indicating the command, the slot number used, and then 80 bytes of data made from the following code:
@@ -124,6 +125,15 @@ const COMMAND_SAVE = 0x04;
  * @returns Bytes indicating the command, slot, and the CRC32 checksum of the received data encoded as four bytes in little-endian format.
  */
 const COMMAND_FULL_WRITE = 0x05;
+
+/**
+ * Reads a full slot at a time.
+ * @value 0x06
+ * @param {number} slot - An optional byte indicating the slot number.  If not specified, the current slot is used.
+ * @param {number} count - An optional byte indicating the number of slots to read.  This requires that the slot be specified.
+ * @returns The command, slot number, CRC32 checksum of the data encoded as four bytes in little-endian format, and 572 bytes of tag data.  This will be repeated for the number of slots requested.
+ */
+const COMMAND_FULL_READ = 0x06;
 
 /**
  * Sets the slot to a blank NTAG215 with a random UID.
@@ -808,7 +818,9 @@ function fastRx(data) {
     response,
     nullIdx,
     crc32,
-    tag;
+    tag,
+    count,
+    i;
 
   if (data.length > 0) {
     switch (data[0]) {
@@ -819,12 +831,21 @@ function fastRx(data) {
 
       case COMMAND_SLOT_INFORMATION: //Slot Information <Slot>
         if (data.length > 1) {
+          count = data.length > 2 ? data[2] : 1;
+
           //Returns a subset of data for identifying
           slot = data[1] < tags.length ? data[1] : currentTag;
-          var tagData = getTagInfo(slot);
 
-          _Bluetooth.write([COMMAND_SLOT_INFORMATION, slot]);
-          _Bluetooth.write(tagData);
+          if (slot + count > tags.length) {
+            count = tags.length - slot;
+          }
+
+          for (i = slot; i < (slot + count); i++) {
+            var tagData = getTagInfo(i);
+
+            _Bluetooth.write([COMMAND_SLOT_INFORMATION, i]);
+            _Bluetooth.write(tagData);
+          }
         } else {
           //Returns 0x01 <Current Slot> <Slot Count>
           _Bluetooth.write([COMMAND_SLOT_INFORMATION, currentTag, tags.length]);
@@ -908,6 +929,25 @@ function fastRx(data) {
 
           _Bluetooth.write(data);
         }, 0);
+
+        return;
+
+      case COMMAND_FULL_READ: //Full Read <Slot> <Count>
+        count = data.length > 2 ? data[2] : 1;
+
+        //Returns a subset of data for identifying
+        slot = data[1] < tags.length ? data[1] : currentTag;
+
+        if (slot + count > tags.length) {
+          count = tags.length - slot;
+        }
+
+        for (i = slot; i < (slot + count); i++) {
+          tag = getTag(i);
+          crc32 = getCRC32(tag);
+          _Bluetooth.write([COMMAND_FULL_READ, i, crc32[0], crc32[1], crc32[2], crc32[3]]);
+          _Bluetooth.write(tag);
+        }
 
         return;
 

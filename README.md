@@ -63,10 +63,11 @@ output.set(tags[slot].buffer.slice(96, 128), 48);
 
 **Parameters:**
 - `slot` (optional): The slot number. If the slot is out of range, the current slot is used.
+- `count` (optional): The number of slots to read.  This requires that the slot also be specified.
 
 **Returns:**
 - If the slot is not specified, returns one byte indicating the command, the current slot number, and the total number of slots.
-- If the slot is specified, returns one byte indicating the command, the slot number used, and then 80 bytes of data.
+- If the slot is specified, returns one byte indicating the command, the slot number used, and then 80 bytes of data. This will be repeated for the number of slots requested, or through the last slot available if the number requested is more than available.
 
 ---
 
@@ -122,6 +123,19 @@ Writes a full slot. The command should be sent as one BLE packet, then an acknow
 
 **Returns:**
 - Bytes indicating the command, slot, and the CRC32 checksum of the received data encoded as four bytes in little-endian format.
+
+---
+
+#### 0x06 - Full Read
+
+Reads a full slot at a time along with calculated CRC32.
+
+**Parameters:**
+- `slot` (optional): The slot number. If the slot is out of range, the current slot is used.
+- `count` (optional): The number of slots to read.  This requires that the slot also be specified.
+
+**Returns:**
+- The command, slot number, CRC32 checksum of the data encoded as four bytes in little-endian format, and 572 bytes of tag data.  This will be repeated for the number of slots requested, or through the last slot available if the number requested is more than available.
 
 ---
 
