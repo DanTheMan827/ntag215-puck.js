@@ -345,19 +345,30 @@ function hexDump(inputData) {
 }
 
 /**
- * Generates a random UID.
- * @returns  {Uint8Array} The UID.
+ * Generates a 9-byte unique identifier (UID) according to NXP.
+ *
+ * @returns {Uint8Array} A 9-byte Uint8Array containing the generated UID.
  */
 function generateUid() {
   var uid = new Uint8Array(9);
+
+  // Set the first byte as 0x04
   uid[0] = 0x04;
-  uid[1] = _MathRound(_MathRandom() * 255);
-  uid[2] = _MathRound(_MathRandom() * 255);
+
+  // Set the next two bytes as random values between 0 and 255
+  uid[1] = Math.round(Math.random() * 255);
+  uid[2] = Math.round(Math.random() * 255);
+
+  // Set the fourth byte using XOR operation with specific values
   uid[3] = uid[0] ^ uid[1] ^ uid[2] ^ 0x88;
-  uid[4] = _MathRound(_MathRandom() * 255);
-  uid[5] = _MathRound(_MathRandom() * 255);
-  uid[6] = _MathRound(_MathRandom() * 255);
-  uid[7] = _MathRound(_MathRandom() * 255);
+
+  // Set the next four bytes as random values between 0 and 255
+  uid[4] = Math.round(Math.random() * 255);
+  uid[5] = Math.round(Math.random() * 255);
+  uid[6] = Math.round(Math.random() * 255);
+  uid[7] = Math.round(Math.random() * 255);
+
+  // Set the last byte using XOR operation with specific values
   uid[8] = uid[4] ^ uid[5] ^ uid[6] ^ uid[7];
 
   return uid;
