@@ -32,7 +32,7 @@ const FAST_MODE_CONSOLE = null;
 /**
  * The name of the script.
  */
-const FIRMWARE_NAME = "dtm-2.1.0";
+const FIRMWARE_NAME = "dtm-2.2.0";
 
 /**
  * The file name in flash used to store the bluetooth device name.
@@ -126,6 +126,16 @@ const COMMAND_SAVE = 0x04;
 const COMMAND_FULL_WRITE = 0x05;
 
 /**
+ * Sets the slot to a blank NTAG215 with a random UID.
+ * @value 0xF9
+ * @param {number} slot - A byte indicating the slot number.
+ * @returns The command, slot, and the nine byte UID of the generated tag.
+ *
+ *          Total number of bytes: 11
+ */
+const COMMAND_CLEAR_SLOT = 0xF9;
+
+/**
  * Requests the Bluetooth name. Returns the name followed by a null terminator.
  * @value 0xFA
  * @returns The name, and a null terminator.
@@ -164,6 +174,7 @@ const COMMAND_ENABLE_BLE_UART = 0xFE;
  * Restarts NFC. This should be called after a tag has been written if it was written to the currently active slot.
  * @value 0xFF
  * @param {number} [slot] - An optional byte indicating the slot number.  If the slot is out of range, the current slot is used.
+ * @returns The command byte and the slot used.
  */
 const COMMAND_RESTART_NFC = 0xFF;
 // #endregion
@@ -350,6 +361,23 @@ function generateUid() {
   uid[8] = uid[4] ^ uid[5] ^ uid[6] ^ uid[7];
 
   return uid;
+}
+
+/**
+ * Generates a blank NTAG215 tag with a random UID.
+ * @returns {Uint8Array} - The generated tag.
+ */
+function generateTag() {
+  var tag = new Uint8Array(572);
+
+  // Generate blank NTAG215 tags with random, but valid UID.
+  tag.set(generateUid(), 0);
+
+  // Set extra data present in blank tags.
+  tag.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
+  tag.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
+
+  return tag;
 }
 
 /**
@@ -757,7 +785,8 @@ function fastRx(data) {
     newSlot,
     response,
     nullIdx,
-    crc32;
+    crc32,
+    tag;
 
   if (data.length > 0) {
     switch (data[0]) {
@@ -858,6 +887,23 @@ function fastRx(data) {
 
         return;
 
+      case COMMAND_CLEAR_SLOT: //Clear Slot <Slot>
+        slot = data[1];
+        tag = generateTag();
+        getTag(slot).set(tag);
+
+        if (currentTag == slot) {
+          changeTag(slot);
+        }
+
+        if (SAVE_TO_FLASH) {
+          saveTag(slot);
+        }
+
+        _Bluetooth.write([COMMAND_CLEAR_SLOT, slot, tag[0], tag[1], tag[2], tag[3], tag[4], tag[5], tag[6], tag[7], tag[8]]);
+
+        return;
+
       case COMMAND_GET_BLUETOOTH_NAME: //Get Bluetooth Name
         //Returns the bluetooth name, followed by a null terminator.
         _Bluetooth.write(storage.readArrayBuffer(PUCK_NAME_FILE));
@@ -886,7 +932,9 @@ function fastRx(data) {
           name: getBufferClone(storage.readArrayBuffer(PUCK_NAME_FILE))
         });
 
-        break;
+        _Bluetooth.write(data);
+
+        return;
 
       case COMMAND_GET_FIRMWARE: //Get Firmware
         if (ENABLE_LOG) {
@@ -906,7 +954,9 @@ function fastRx(data) {
           changeTag(currentTag);
         }
 
-        break;
+        _Bluetooth.write([COMMAND_MOVE_SLOT, oldSlot, newSlot]);
+
+        return;
 
       case COMMAND_ENABLE_BLE_UART: //Enable BLE UART
         onFastModeDisconnect();
@@ -915,12 +965,15 @@ function fastRx(data) {
 
       case COMMAND_RESTART_NFC: //Restart NFC <Slot?>
         if (data.length > 1) {
-          changeTag(data[1] >= tags.length ? 0 : data[1]);
+          slot = data[1] >= tags.length ? 0 : data[1];
+          changeTag(slot);
+          _Bluetooth.write([COMMAND_RESTART_NFC, slot]);
         } else {
           changeTag(currentTag);
+          _Bluetooth.write([COMMAND_RESTART_NFC, currentTag]);
         }
 
-        break;
+        return;
 
       default:
         _Bluetooth.write("Bad Command");
@@ -1023,12 +1076,7 @@ if (typeof _NTAG215 !== "undefined") {
 
       tag.set(buffer);
     } else {
-      // Generate blank NTAG215 tags with random, but valid UID.
-      tag.set(generateUid(), 0);
-
-      // Set extra data present in blank tags.
-      tag.set([0x48, 0x00, 0x00, 0xE1, 0x10, 0x3E, 0x00, 0x03, 0x00, 0xFE], 0x09);
-      tag.set([0xBD, 0x04, 0x00, 0x00, 0xFF, 0x00, 0x05], 0x20B);
+      tag.set(generateTag());
     }
   }
 

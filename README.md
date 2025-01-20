@@ -125,6 +125,18 @@ Writes a full slot. The command should be sent as one BLE packet, then an acknow
 
 ---
 
+#### 0xF9 - Clear slot
+
+Sets the slot to a blank NTAG215 with a random UID.
+
+**Parameters:**
+- `slot`: The slot to clear.
+
+**Returns:**
+- The command, slot, and the nine byte UID of the generated tag.
+
+---
+
 #### 0xFA - Get Bluetooth Name
 
 Requests the Bluetooth name.
