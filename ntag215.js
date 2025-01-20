@@ -477,6 +477,17 @@ function changeTag(slot, immediate) {
 }
 
 /**
+ * Refreshes a tag in a specific slot if it is the current tag.
+ *
+ * @param {number} slot - The slot number of the tag to refresh.
+ */
+function refreshTag(slot) {
+  if (currentTag === slot) {
+    changeTag(slot);
+  }
+}
+
+/**
  * This will cycle through the first 7 slots.
  * @see - {@link changeTag} If you want to change to a specific slot.
  */
@@ -890,6 +901,8 @@ function fastRx(data) {
               getTag(slot).set(rxData, 0, 0);
             }
 
+            refreshTag(slot);
+
             _Bluetooth.write([COMMAND_FULL_WRITE, slot, receivedCrc32[0], receivedCrc32[1], receivedCrc32[2], receivedCrc32[3]]);
           });
 
@@ -903,9 +916,7 @@ function fastRx(data) {
         tag = generateBlankTag();
         getTag(slot).set(tag);
 
-        if (currentTag == slot) {
-          changeTag(slot);
-        }
+        refreshTag();
 
         if (SAVE_TO_FLASH) {
           saveTag(slot);
