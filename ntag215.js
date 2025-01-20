@@ -920,9 +920,13 @@ function fastRx(data) {
             // Only store the tag if the target CRC32 is not set, or if the received CRC32 matches the target.
             if (crc32 === null || compareArrays(crc32, receivedCrc32)) {
               getTag(slot).set(rxData, 0, 0);
-            }
 
-            refreshTag(slot);
+              refreshTag(slot);
+
+              if (SAVE_TO_FLASH) {
+                saveTag(slot);
+              }
+            }
 
             _Bluetooth.write([COMMAND_FULL_WRITE, slot, receivedCrc32[0], receivedCrc32[1], receivedCrc32[2], receivedCrc32[3]]);
           });
@@ -956,7 +960,7 @@ function fastRx(data) {
         tag = generateBlankTag();
         getTag(slot).set(tag);
 
-        refreshTag();
+        refreshTag(slot);
 
         if (SAVE_TO_FLASH) {
           saveTag(slot);

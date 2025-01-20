@@ -103,7 +103,7 @@ Writes data to a slot.
 
 #### 0x04 - Save
 
-Saves the slot. If `SAVE_TO_FLASH` is true, this will save the slot to flash, otherwise it will do nothing. This should always be called after `COMMAND_WRITE` or `COMMAND_FULL_WRITE`.
+Saves the slot. If `SAVE_TO_FLASH` is true, this will save the slot to flash, otherwise it will do nothing. This should always be called after `COMMAND_WRITE`.
 
 **Parameters:**
 - `slot` (optional): The slot number. If out of range, the current slot is used.
