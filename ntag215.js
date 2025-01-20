@@ -378,7 +378,7 @@ function generateUid() {
  * Generates a blank NTAG215 tag with a random UID.
  * @returns {Uint8Array} - The generated tag.
  */
-function generateTag() {
+function generateBlankTag() {
   var tag = new Uint8Array(572);
 
   // Generate blank NTAG215 tags with random, but valid UID.
@@ -900,7 +900,7 @@ function fastRx(data) {
 
       case COMMAND_CLEAR_SLOT: //Clear Slot <Slot>
         slot = data[1];
-        tag = generateTag();
+        tag = generateBlankTag();
         getTag(slot).set(tag);
 
         if (currentTag == slot) {
@@ -1087,7 +1087,7 @@ if (typeof _NTAG215 !== "undefined") {
 
       tag.set(buffer);
     } else {
-      tag.set(generateTag());
+      tag.set(generateBlankTag());
     }
   }
 
