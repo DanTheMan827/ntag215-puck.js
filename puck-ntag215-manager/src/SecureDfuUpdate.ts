@@ -32,10 +32,10 @@ function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
       return require("./firmware/espruino_2v15.767_banglejs2.zip")
 
     case EspruinoBoards.PuckJS:
-      return require("./firmware/espruino_2v15.767_puckjs.zip")
+      return require("./firmware/espruino_2v25.7_puckjs.zip")
 
     case EspruinoBoards.PuckJSMinimal:
-      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
+      return require("./firmware/espruino_2v25.7_puckjs_minimal.zip")
 
     case EspruinoBoards.PixlJS:
       return require("./firmware/espruino_2v15.767_pixljs.zip")
