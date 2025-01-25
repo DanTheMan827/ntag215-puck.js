@@ -980,11 +980,11 @@ function fastRx(data) {
 
         // If the null terminator is not found, set it to the end of the data.
         if (nullIdx == -1) {
-          nullIdx = data.length - 1;
+          nullIdx = data.length;
         }
 
         // Write the name to flash.
-        if (nullIdx > 1) {
+        if (nullIdx > 2) {
           storage.write(PUCK_NAME_FILE, data.slice(1, nullIdx));
         } else {
           storage.erase(PUCK_NAME_FILE);
