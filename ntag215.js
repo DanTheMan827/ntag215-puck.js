@@ -1058,9 +1058,9 @@ function fastRx(data) {
               return _Bluetooth.write(BAD_COMMAND);
             }
 
-            let slot = data[2];
-            let figureId = data.slice(3, 11); // slice the figureId from the data
-            let tag = generateFigureTag(slot, figureId);
+            const slot = data[2];
+            const figureId = data.slice(3, 11); // slice the figureId from the data
+            const tag = generateFigureTag(slot, figureId);
 
             return _Bluetooth.write([COMMAND_AMIITOOL, SUBCOMMAND_AMIITOOL_GENERATE_TAG, slot, tag[0], tag[1], tag[2], tag[3], tag[4], tag[5], tag[6], tag[7], tag[8]]);
           }
@@ -1071,7 +1071,7 @@ function fastRx(data) {
             }
 
             /** @type {number} */
-            let slot = data[2];
+            const slot = data[2];
 
             /** @type {Uint8Array} */
             let uid;
@@ -1094,8 +1094,9 @@ function fastRx(data) {
       }
 
       case COMMAND_CLEAR_SLOT: { // Clear Slot <Slot>
-        let slot = data[1];
-        let tag = generateBlankTag();
+        const slot = data[1];
+        const tag = generateBlankTag();
+
         getTag(slot).set(tag);
 
         refreshTag(slot);
@@ -1256,7 +1257,7 @@ function setGeneratedTag(tag, identifier) {
  * @returns {Uint8Array} - The 9 byte UID that was set.
  */
 function changeFigureUid(slot, uid) {
-  let tag = getTag(slot);
+  const tag = getTag(slot);
 
   // Unpack and decrypt the tag.
   _amiitool.unpack(keys, tag);
@@ -1287,7 +1288,7 @@ function changeFigureUid(slot, uid) {
  * @returns - The generated tag.
  */
 function generateFigureTag(slot, identifier) {
-  let tag = getTag(slot);
+  const tag = getTag(slot);
 
   // Set the generated tag with specific values.
   setGeneratedTag(tag, identifier);
@@ -1322,7 +1323,7 @@ function titleCase(str) {
  * @param {number} [ms=50] - The duration of the beep sound in milliseconds (default is 50ms).
  * @returns {void}
  */
-function beep(freq, ms) {
+function _beep(freq, ms) {
   analogWrite(D14, 0.5, { freq: freq, soft: true });
   setTimeout(function() {
     digitalWrite(D14, 1);
