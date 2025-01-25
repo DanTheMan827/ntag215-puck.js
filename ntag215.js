@@ -45,6 +45,21 @@ const PUCK_NAME_FILE = "puck-name";
 const FAST_MODE_STRING = "DTM_PUCK_FAST";
 
 /**
+ * The string to send when the command is not recognized.
+ */
+const BAD_COMMAND = "Bad Command";
+
+/**
+ * The file name in flash used to store the amiitool key.
+ */
+const KEY_FILENAME = "key_retail.bin";
+
+/**
+ * The CRC32 checksum of valid key data.
+ */
+const KEY_CRC32 = 0xC6408C16;
+
+/**
  * The board that the script is running on.  Used to determine various features.
  * @type {string}
  */
@@ -136,6 +151,53 @@ const COMMAND_FULL_WRITE = 0x05;
 const COMMAND_FULL_READ = 0x06;
 
 /**
+ * A command with sub-commands to manage the slots with amiitool.
+ *
+ * If no sub-command is specified, the available commands will be returned.
+ * @value 0xEE
+ * @param {number} subCommand - An optional byte indicating the sub-command.
+ * @returns The available sub-commands if no sub-command is specified.
+ */
+const COMMAND_AMIITOOL = 0xEE;
+
+/**
+ * A sub-command to check if the amiitool key is set as well as to set it.
+ *
+ * If no additional data is sent, this will return 0x00 if the key is present, or 0x01 if it is not.
+ *
+ * To set the key, send {@link COMMAND_AMIITOOL}, this command, and 0x00 as one BLE package, then an acknowledgement will be sent back consisting of the command used.
+ *
+ * After the acknowledgement, exactly 160 bytes should be sent.
+ *
+ * This command will wait until all data has been received before more commands can be executed.
+ * @value 0x00
+ * @param {Uint8Array} [key] - An optional 160 byte key combination.
+ * @returns 0x00 if the key is present, or 0x01 if it is not. If setting the key, the key will be stored if the data is valid. 0x01 will be returned if the data is invalid, otherwise 0x00 will be returned.
+ */
+const SUBCOMMAND_AMIITOOL_KEY = 0x00;
+
+/**
+ * When the key is set, this command will generate a blank amiibo tag with a random UID.
+ * @value 0x01
+ * @param {number} slot - A byte indicating the slot number.
+ * @param {Uint8Array} figureId - The 8 bytes of the figure ID.
+ * @returns If the key is not set, {@link BAD_COMMAND} will be returned.  Otherwise, the command, slot, and the nine byte UID of the generated tag will be returned.
+ */
+const SUBCOMMAND_AMIITOOL_GENERATE_TAG = 0x01;
+
+/**
+ * When the key is set, this command will randomize the UID of the tag in the specified slot.
+ *
+ * An optional UID can be sent to set the UID to a specific value.
+ * @value 0x02
+ * @param {number} slot - A byte indicating the slot number.
+ * @param {Uint8Array} [uid] - An optional 9 byte UID.
+ * @returns The command, sub-command, slot, and the nine byte UID of the generated tag.
+ */
+const SUBCOMMAND_AMIITOOL_CHANGE_UID = 0x02;
+
+
+/**
  * Sets the slot to a blank NTAG215 with a random UID.
  * @value 0xF9
  * @param {number} slot - A byte indicating the slot number.
@@ -202,6 +264,7 @@ const _LED1 = this.LED1;
 const _LED2 = this.LED2;
 const _LED3 = this.LED3;
 const _NTAG215 = this.NTAG215;
+const _amiitool = this.amiitool;
 const _clearTimeout = clearTimeout;
 const _setTimeout = setTimeout;
 const _setWatch = setWatch;
@@ -253,7 +316,7 @@ const tags = [];
 /**
  * An array containing the amiibo keys.
  */
-var keys = null;
+let keys = null;
 
 /**
  * If {@link fastRx} should process data.
@@ -956,10 +1019,83 @@ function fastRx(data) {
         return;
       }
 
-      case COMMAND_CLEAR_SLOT: { //Clear Slot <Slot>
-        const slot = data[1];
-        const tag = generateBlankTag();
+      case COMMAND_AMIITOOL: { // Amiitool <SubCommand>
+        if (!_amiitool) {
+          return _Bluetooth.write(BAD_COMMAND);
+        }
 
+        if (data.length == 1) {
+          return _Bluetooth.write([SUBCOMMAND_AMIITOOL_KEY, SUBCOMMAND_AMIITOOL_GENERATE_TAG, SUBCOMMAND_AMIITOOL_CHANGE_UID]);
+        }
+
+        switch (data[1]) {
+          case SUBCOMMAND_AMIITOOL_KEY: { // Amiitool Key <Key>
+            if (data.length == 3 && data[2] == 0x00) {
+              // We're going to receive 160 bytes of data.
+              _setTimeout(function() {
+                rxBytes(160, (rxData) => {
+                  const crc32 = E.CRC32(rxData);
+
+                  if (crc32 == KEY_CRC32) {
+                    keys = getBufferClone(rxData);
+                    storage.write(KEY_FILENAME, keys);
+                  }
+
+                  return _Bluetooth.write([keys != null ? 0x00 : 0x01]);
+                });
+
+                return _Bluetooth.write(data);
+              }, 0);
+
+              return; // Return without a response because it will be handled after the timeout executes and we don't want the key check response to be sent.
+            }
+
+            return _Bluetooth.write([keys != null ? 0x00 : 0x01]);
+          }
+
+          case SUBCOMMAND_AMIITOOL_GENERATE_TAG: { // Amiitool Generate Tag <Slot> <FigureId>
+            if (keys == null || data.length != 11) {
+              return _Bluetooth.write(BAD_COMMAND);
+            }
+
+            let slot = data[2];
+            let figureId = data.slice(3, 11); // slice the figureId from the data
+            let tag = generateFigureTag(slot, figureId);
+
+            return _Bluetooth.write([COMMAND_AMIITOOL, SUBCOMMAND_AMIITOOL_GENERATE_TAG, slot, tag[0], tag[1], tag[2], tag[3], tag[4], tag[5], tag[6], tag[7], tag[8]]);
+          }
+
+          case SUBCOMMAND_AMIITOOL_CHANGE_UID: { // Amiitool Randomize UID <Slot> <UID>
+            if (keys == null || data.length < 3 || data.length > 12) {
+              return _Bluetooth.write(BAD_COMMAND);
+            }
+
+            /** @type {number} */
+            let slot = data[2];
+
+            /** @type {Uint8Array} */
+            let uid;
+
+
+            if (data.length == 12) {
+              uid = data.slice(3, 12); // slice the UID from the data
+              changeFigureUid(slot, uid);
+            } else {
+              uid = changeFigureUid(slot);
+            }
+
+            return _Bluetooth.write([COMMAND_AMIITOOL, SUBCOMMAND_AMIITOOL_CHANGE_UID, slot, uid[0], uid[1], uid[2], uid[3], uid[4], uid[5], uid[6], uid[7], uid[8]]);
+          }
+
+          default: {
+            return _Bluetooth.write(BAD_COMMAND);
+          }
+        }
+      }
+
+      case COMMAND_CLEAR_SLOT: { // Clear Slot <Slot>
+        let slot = data[1];
+        let tag = generateBlankTag();
         getTag(slot).set(tag);
 
         refreshTag(slot);
@@ -1045,7 +1181,9 @@ function fastRx(data) {
       }
 
       default:
-        return _Bluetooth.write("Bad Command");
+        _Bluetooth.write(BAD_COMMAND);
+
+        return;
     }
   }
 
@@ -1107,27 +1245,38 @@ function setGeneratedTag(tag, identifier) {
   setInternalPass(tag);
 
   // Pack and encrypt the tag.
-  amiitool.pack(keys, tag);
+  _amiitool.pack(keys, tag);
 }
 
 /**
  * Randomizes the internal UID for a tag in a specific slot.
  *
  * @param {number} slot - The slot number of the tag to randomize the UID for.
+ * @param {Uint8Array} [uid] - (Optional) The 9 byte UID to set. If not provided, a new one will be generated.
+ * @returns {Uint8Array} - The 9 byte UID that was set.
  */
-function randomizeUid(slot) {
+function changeFigureUid(slot, uid) {
+  let tag = getTag(slot);
+
   // Unpack and decrypt the tag.
-  amiitool.unpack(keys, tags[slot]);
+  _amiitool.unpack(keys, tag);
 
   // Set the internal UID and internal password for the tag.
-  setInternalUid(tags[slot]);
-  setInternalPass(tags[slot]);
+  setInternalUid(tag, uid);
+  setInternalPass(tag);
 
   // Pack and encrypt the tag.
-  amiitool.pack(keys, tags[slot]);
+  _amiitool.pack(keys, tag);
 
   // Refresh the tag if needed.
   refreshTag(slot);
+
+  // Save the tag
+  if (SAVE_TO_FLASH) {
+    saveTag(slot);
+  }
+
+  return [tag[0], tag[1], tag[2], tag[3], tag[4], tag[5], tag[6], tag[7], tag[8]];
 }
 
 /**
@@ -1135,13 +1284,23 @@ function randomizeUid(slot) {
  *
  * @param {number} slot - The slot number of the tag to generate.
  * @param {Uint8Array} identifier - The identifier data to set in the tag.
+ * @returns - The generated tag.
  */
-function generateTag(slot, identifier) {
+function generateFigureTag(slot, identifier) {
+  let tag = getTag(slot);
+
   // Set the generated tag with specific values.
-  setGeneratedTag(tags[slot], identifier);
+  setGeneratedTag(tag, identifier);
 
   // Refresh the tag if needed.
   refreshTag(slot);
+
+  // Save the tag
+  if (SAVE_TO_FLASH) {
+    saveTag(slot);
+  }
+
+  return tag;
 }
 
 /**
@@ -1266,7 +1425,12 @@ if (typeof _NTAG215 !== "undefined") {
     }
   }
 
-  keys = getBufferClone(storage.readArrayBuffer("key_retail.bin"));
+  keys = getBufferClone(storage.readArrayBuffer(KEY_FILENAME));
+
+  if (keys != null && E.CRC32(keys) != KEY_CRC32) {
+    keys = null;
+    storage.erase(KEY_FILENAME);
+  }
 
   // Initialize watches and start BLE advertising.
   initialize();
