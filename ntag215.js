@@ -69,7 +69,7 @@ const COMMAND_BLE_PACKET_TEST = 0x00;
  *
  *          If the slot is specified, returns one byte indicating the command, the slot number used, and then 80 bytes of data made from the following code:
  *          ```javascript
- *          var output = Uint8Array(80);
+ *          let output = Uint8Array(80);
  *          output.set(tags[slot].buffer.slice(0, 8), 0);
  *          output.set(tags[slot].buffer.slice(16, 24), 8);
  *          output.set(tags[slot].buffer.slice(32, 52), 20);
@@ -233,37 +233,37 @@ const ENABLE_LEDS = ENABLE_LED1 || ENABLE_LED2 || ENABLE_LED3;
 /**
  * The active tag index.
  */
-var currentTag = 0;
+let currentTag = 0;
 
 /**
  * Contains the timeout between changing tags.
  */
-var changeTagTimeout = null;
+let changeTagTimeout = null;
 
 /**
  * A buffer used by the NTAG215 emulator.
  */
-var txBuffer = new Uint8Array(32);
+let txBuffer = new Uint8Array(32);
 
 /**
  * An array of the in-memory tags, unused if {@link SAVE_TO_FLASH} is true
  */
-var tags = [];
+let tags = [];
 
 /**
  * If {@link fastRx} should process data.
  */
-var rxPaused = false;
+let rxPaused = false;
 
 /**
  * Auto-sleep timeout reference.
  */
-var autoSleepTimeout = null;
+let autoSleepTimeout = null;
 
 /**
  * If bluetooth is currently connected.
  */
-var bluetoothConnected = false;
+let bluetoothConnected = false;
 // #endregion
 
 // #region Tag initialization
@@ -321,7 +321,7 @@ function fixUid() {
  */
 function hexDump(inputData) {
   // Initialize an empty string `line`, which will be used to build the output lines containing the hexadecimal values.
-  var line = "";
+  let line = "";
 
   // Iterate through each element of the `inputData` array.
   for (let i = 0; i < inputData.length; i++) {
@@ -360,23 +360,23 @@ function hexDump(inputData) {
  * @returns {Uint8Array} A 9-byte Uint8Array containing the generated UID.
  */
 function generateUid() {
-  var uid = new Uint8Array(9);
+  let uid = new Uint8Array(9);
 
   // Set the first byte as 0x04
   uid[0] = 0x04;
 
   // Set the next two bytes as random values between 0 and 255
-  uid[1] = Math.round(Math.random() * 255);
-  uid[2] = Math.round(Math.random() * 255);
+  uid[1] = _MathRound(_MathRandom() * 255);
+  uid[2] = _MathRound(_MathRandom() * 255);
 
   // Set the fourth byte using XOR operation with specific values
   uid[3] = uid[0] ^ uid[1] ^ uid[2] ^ 0x88;
 
   // Set the next four bytes as random values between 0 and 255
-  uid[4] = Math.round(Math.random() * 255);
-  uid[5] = Math.round(Math.random() * 255);
-  uid[6] = Math.round(Math.random() * 255);
-  uid[7] = Math.round(Math.random() * 255);
+  uid[4] = _MathRound(_MathRandom() * 255);
+  uid[5] = _MathRound(_MathRandom() * 255);
+  uid[6] = _MathRound(_MathRandom() * 255);
+  uid[7] = _MathRound(_MathRandom() * 255);
 
   // Set the last byte using XOR operation with specific values
   uid[8] = uid[4] ^ uid[5] ^ uid[6] ^ uid[7];
@@ -389,7 +389,7 @@ function generateUid() {
  * @returns {Uint8Array} - The generated tag.
  */
 function generateBlankTag() {
-  var tag = new Uint8Array(572);
+  let tag = new Uint8Array(572);
 
   // Generate blank NTAG215 tags with random, but valid UID.
   tag.set(generateUid(), 0);
@@ -518,7 +518,7 @@ function cycleTags() {
  */
 function getBufferClone(buffer) {
   if (buffer) {
-    var output = new Uint8Array(buffer.length);
+    let output = new Uint8Array(buffer.length);
     output.set(buffer);
 
     return output;
@@ -549,7 +549,7 @@ function saveTag(slot) {
  * Saves all tags to flash.
  */
 function saveAllTags() {
-  for (var i = 0; i < tags.length; i++) {
+  for (let i = 0; i < tags.length; i++) {
     saveTag(i);
   }
 }
@@ -769,15 +769,15 @@ function onFastModeDisconnect() {
 function rxBytes(count, callback) {
   rxPaused = true;
 
-  var buffer = new Uint8Array(count);
-  var position = 0;
+  let buffer = new Uint8Array(count);
+  let position = 0;
 
   function receive(data) {
     buffer.set(new Uint8Array(E.toUint8Array(data), 0, Math.min(data.length, count - position)), position);
     position = position + data.length;
 
     if (position >= count) {
-      var tempBuffer = buffer;
+      let tempBuffer = buffer;
       disconnect();
       callback(tempBuffer);
     }
@@ -808,40 +808,27 @@ function fastRx(data) {
   // data is a string, so you want to convert to an array to work with
   data = E.toUint8Array(data);
 
-  // define some variables to use.
-  var slot,
-    startIdx,
-    dataSize,
-    sourceData,
-    oldSlot,
-    newSlot,
-    response,
-    nullIdx,
-    crc32,
-    tag,
-    count,
-    i;
-
   if (data.length > 0) {
     switch (data[0]) {
-      case COMMAND_BLE_PACKET_TEST: //BLE Packet Test
+      case COMMAND_BLE_PACKET_TEST: { //BLE Packet Test
         _Bluetooth.write(new Uint8Array(data.length > 1 ? data[1] : 255));
 
         return;
+      }
 
-      case COMMAND_SLOT_INFORMATION: //Slot Information <Slot>
+      case COMMAND_SLOT_INFORMATION: { //Slot Information <Slot>
         if (data.length > 1) {
-          count = data.length > 2 ? data[2] : 1;
+          let count = data.length > 2 ? data[2] : 1;
 
           //Returns a subset of data for identifying
-          slot = data[1] < tags.length ? data[1] : currentTag;
+          let slot = data[1] < tags.length ? data[1] : currentTag;
 
           if (slot + count > tags.length) {
             count = tags.length - slot;
           }
 
-          for (i = slot; i < (slot + count); i++) {
-            var tagData = getTagInfo(i);
+          for (let i = slot; i < (slot + count); i++) {
+            let tagData = getTagInfo(i);
 
             _Bluetooth.write([COMMAND_SLOT_INFORMATION, i]);
             _Bluetooth.write(tagData);
@@ -852,32 +839,34 @@ function fastRx(data) {
         }
 
         return;
+      }
 
-      case COMMAND_READ: //Read <Slot> <StartPage> <PageCount>
+      case COMMAND_READ: { //Read <Slot> <StartPage> <PageCount>
         //Max pages: 143
         //Returns 0x02 <Slot> <StartPage> <PageCount> <Data>
-        startIdx = data[2] * 4;
-        dataSize = data[3] * 4;
-        slot = data[1] < tags.length ? data[1] : currentTag;
-        sourceData = getTag(slot).slice(startIdx, startIdx + dataSize);
+        let startIdx = data[2] * 4;
+        let dataSize = data[3] * 4;
+        let slot = data[1] < tags.length ? data[1] : currentTag;
+        let sourceData = getTag(slot).slice(startIdx, startIdx + dataSize);
 
         if (ENABLE_LOG) {
           //_consoleLog("Reading from slot: " + slot);
           //_consoleLog("Read from " + startIdx + " - " + (startIdx + dataSize));
         }
 
-        response = Uint8Array(4);
+        let response = Uint8Array(4);
         response.set(Uint8Array(data, 0, 4), 0);
         response[1] = slot;
         _Bluetooth.write(response);
         _Bluetooth.write(sourceData);
 
         return;
+      }
 
-      case COMMAND_WRITE: //Write <Slot> <StartPage> <Data>
-        startIdx = data[2] * 4;
-        dataSize = data.length - 3;
-        slot = data[1] < tags.length ? data[1] : currentTag;
+      case COMMAND_WRITE: { //Write <Slot> <StartPage> <Data>
+        let startIdx = data[2] * 4;
+        let dataSize = data.length - 3;
+        let slot = data[1] < tags.length ? data[1] : currentTag;
 
         //store data if it fits into memory
         if ((startIdx + dataSize) <= 572) {
@@ -893,10 +882,11 @@ function fastRx(data) {
         _Bluetooth.write([COMMAND_WRITE, slot, data[2]]);
 
         return;
+      }
 
-      case COMMAND_SAVE: //Save <Slot>
+      case COMMAND_SAVE: { //Save <Slot>
         if (SAVE_TO_FLASH) {
-          slot = data[1] < tags.length ? data[1] : currentTag;
+          let slot = data[1] < tags.length ? data[1] : currentTag;
 
           saveTag(slot);
         }
@@ -904,10 +894,11 @@ function fastRx(data) {
         _Bluetooth.write([COMMAND_SAVE, data[1]]);
 
         return;
+      }
 
-      case COMMAND_FULL_WRITE: //Full Write <Slot>
-        slot = data[1];
-        crc32 = null;
+      case COMMAND_FULL_WRITE: { //Full Write <Slot>
+        let slot = data[1];
+        let crc32 = null;
 
         if (data.length == 6) {
           crc32 = data.slice(2, 6);
@@ -935,29 +926,31 @@ function fastRx(data) {
         }, 0);
 
         return;
+      }
 
-      case COMMAND_FULL_READ: //Full Read <Slot> <Count>
-        count = data.length > 2 ? data[2] : 1;
+      case COMMAND_FULL_READ: { //Full Read <Slot> <Count>
+        let count = data.length > 2 ? data[2] : 1;
 
         //Returns a subset of data for identifying
-        slot = data[1] < tags.length ? data[1] : currentTag;
+        let slot = data[1] < tags.length ? data[1] : currentTag;
 
         if (slot + count > tags.length) {
           count = tags.length - slot;
         }
 
-        for (i = slot; i < (slot + count); i++) {
-          tag = getTag(i);
-          crc32 = getCRC32(tag);
+        for (let i = slot; i < (slot + count); i++) {
+          let tag = getTag(i);
+          let crc32 = getCRC32(tag);
           _Bluetooth.write([COMMAND_FULL_READ, i, crc32[0], crc32[1], crc32[2], crc32[3]]);
           _Bluetooth.write(tag);
         }
 
         return;
+      }
 
-      case COMMAND_CLEAR_SLOT: //Clear Slot <Slot>
-        slot = data[1];
-        tag = generateBlankTag();
+      case COMMAND_CLEAR_SLOT: { //Clear Slot <Slot>
+        let slot = data[1];
+        let tag = generateBlankTag();
         getTag(slot).set(tag);
 
         refreshTag(slot);
@@ -969,17 +962,19 @@ function fastRx(data) {
         _Bluetooth.write([COMMAND_CLEAR_SLOT, slot, tag[0], tag[1], tag[2], tag[3], tag[4], tag[5], tag[6], tag[7], tag[8]]);
 
         return;
+      }
 
-      case COMMAND_GET_BLUETOOTH_NAME: //Get Bluetooth Name
+      case COMMAND_GET_BLUETOOTH_NAME: { //Get Bluetooth Name
         //Returns the bluetooth name, followed by a null terminator.
         _Bluetooth.write(storage.readArrayBuffer(PUCK_NAME_FILE));
         _Bluetooth.write([0]); // Null terminator
 
         return;
+      }
 
-      case COMMAND_SET_BLUETOOTH_NAME: //Set Bluetooth Name
+      case COMMAND_SET_BLUETOOTH_NAME: { //Set Bluetooth Name
         // Get the index of the null terminator.
-        nullIdx = data.indexOf(0);
+        let nullIdx = data.indexOf(0);
 
         // If the null terminator is not found, set it to the end of the data.
         if (nullIdx == -1) {
@@ -1001,8 +996,9 @@ function fastRx(data) {
         _Bluetooth.write(data);
 
         return;
+      }
 
-      case COMMAND_GET_FIRMWARE: //Get Firmware
+      case COMMAND_GET_FIRMWARE: { //Get Firmware
         if (ENABLE_LOG) {
           _consoleLog("Firmware Name:", FIRMWARE_NAME);
         }
@@ -1011,10 +1007,12 @@ function fastRx(data) {
         _Bluetooth.write([0]); // Null terminator
 
         return;
+      }
 
-      case COMMAND_MOVE_SLOT: //Move slot <From> <To>
-        oldSlot = data[1];
-        newSlot = data[2];
+      case COMMAND_MOVE_SLOT: { //Move slot <From> <To>
+        let oldSlot = data[1];
+        let newSlot = data[2];
+
         if (oldSlot < tags.length && newSlot < tags.length) {
           tags.splice(newSlot, 0, tags.splice(oldSlot, 1)[0]);
           changeTag(currentTag);
@@ -1023,15 +1021,17 @@ function fastRx(data) {
         _Bluetooth.write([COMMAND_MOVE_SLOT, oldSlot, newSlot]);
 
         return;
+      }
 
-      case COMMAND_ENABLE_BLE_UART: //Enable BLE UART
+      case COMMAND_ENABLE_BLE_UART: { //Enable BLE UART
         onFastModeDisconnect();
 
         return;
+      }
 
-      case COMMAND_RESTART_NFC: //Restart NFC <Slot?>
+      case COMMAND_RESTART_NFC: { //Restart NFC <Slot?>
         if (data.length > 1) {
-          slot = data[1] >= tags.length ? 0 : data[1];
+          let slot = data[1] >= tags.length ? 0 : data[1];
           changeTag(slot);
           _Bluetooth.write([COMMAND_RESTART_NFC, slot]);
         } else {
@@ -1040,6 +1040,7 @@ function fastRx(data) {
         }
 
         return;
+      }
 
       default:
         _Bluetooth.write("Bad Command");
@@ -1130,7 +1131,7 @@ if (typeof _NTAG215 !== "undefined") {
   });
 
   // Initialize the tags in ram, and load any saved tags from flash.
-  for (var i = 0; i < tags.length; i++) {
+  for (let i = 0; i < tags.length; i++) {
     const filename = "tag" + i + ".bin";
     const buffer = storage.readArrayBuffer(filename);
     const tag = getTag(i);
