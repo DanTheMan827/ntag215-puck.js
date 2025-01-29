@@ -25,13 +25,13 @@ jobs:
     outputs:
       branches: ${{ steps.get-branches.outputs.branches }}
     steps:
-      - uses: actions/checkout@v4
-
       - name: Get list of remote branches and their hashes
         id: get-branches
         run: |
+          git clone --no-checkout "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git"
           git fetch --all
           branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc .)"
+          echo "$branches" | jq .
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
   build:
@@ -79,7 +79,10 @@ jobs:
       - name: Download all artifacts
         uses: actions/download-artifact@v4
         with:
-          path: "artifacts"
+          path: "./artifacts"
+
+      - name: List files
+        run: find . -type f
 
       - name: Prepare artifacts
         env:
@@ -91,17 +94,22 @@ jobs:
             name="$(echo "$branch" | jq -r '.name')"
             hash="$(echo "$branch" | jq -r '.hash')"
 
-            if [ ! -e "artifacts/$hash" ]; then
+            if [ ! -d "./artifacts/$hash" ]; then
               continue
             fi
 
             if [ "$name" == "master" ]; then
-              mv "artifacts/$hash"/* "dist/"
+              (cd "./artifacts/$hash"  && mv * "../../dist/")
             else
               mkdir -p "dist/$name"
-              mv "artifacts/$hash"/* "dist/$name/"
+              (cd "./artifacts/$hash" && mv * "../../dist/$name/")
             fi
+
+            rmdir "./artifacts/$hash"
           done
+
+      - name: List files
+        run: find . -type f
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
