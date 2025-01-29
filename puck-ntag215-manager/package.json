@@ -36,7 +36,7 @@
     "del-cli": "^6.0.0",
     "escodegen": "^1.8.0",
     "esmangle": "^1.0.1",
-    "espruino": "^0.1.45",
+    "espruino": "^0.1.57",
     "espruino-loader": "^1.2.3",
     "file-loader": "^6.2.0",
     "highlight.js": "^11.11.1",
