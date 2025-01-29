@@ -27,6 +27,7 @@ jobs:
       - name: Get list of remote branches and their hashes
         id: get-branches
         run: |
+          set -x
           git clone --no-checkout "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" .
           git fetch --all
           branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc 'map(select(.name != "origin"))')"
@@ -57,9 +58,9 @@ jobs:
         id: check_dir
         run: |
           if [ -d "puck-ntag215-manager" ]; then
-            echo "exists=true" >> $GITHUB_OUTPUT
+            echo "exists=true" | tee "$GITHUB_OUTPUT"
           else
-            echo "exists=false" >> $GITHUB_OUTPUT
+            echo "exists=false" | tee "$GITHUB_OUTPUT"
           fi
 
       - name: Use Node.js
@@ -69,7 +70,7 @@ jobs:
       - name: Build web app
         if: ${{ steps.check_dir.outputs.exists == 'true' }}
         run: |
-          [ -d "puck-ntag215-manager" ]
+          set -x
           cd puck-ntag215-manager
           npm install --no-optional
           npm run build
@@ -109,16 +110,21 @@ jobs:
           branches: ${{ needs.build.outputs.branches }}
 
         run: |
-          mkdir -p "dist/"
+          set -x
+
           echo "$branches" | jq -c '.[]' | while read -r branch; do
             name="$(echo "$branch" | jq -r '.name')"
             hash="$(echo "$branch" | jq -r '.hash')"
 
+            echo "Working on branch $name — $hash"
+
             if [ ! -d "./artifacts/$hash" ]; then
+              echo "Artifact not found for $hash, skipping"
               continue
             fi
 
             if [ "$name" == "master" ]; then
+              mkdir -p "dist/"
               (cd "./artifacts/$hash"  && mv * "../../dist/")
             else
               mkdir -p "dist/$name"
