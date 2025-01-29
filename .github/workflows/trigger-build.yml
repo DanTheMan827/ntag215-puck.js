@@ -2,8 +2,6 @@ name: Trigger Node.js Workflow
 
 on:
   push:
-    branches:
-      - '*'
     branches-ignore:
       - master
   workflow_dispatch:
@@ -17,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Trigger Node.js workflow if pushed to any branch other than master
+      - name: Trigger build workflow if pushed to any branch other than master
         run: |
           # Trigger the node.js.yml workflow via GitHub API using curl
           curl -X POST \
             -H "Authorization: token ${{ secrets.GITHUB_TOKEN }}" \
             -d '{"ref": "master"}' \
-            https://api.github.com/repos/${{ github.repository }}/actions/workflows/node.js.yml/dispatches
+            "https://api.github.com/repos/${{ github.repository }}/actions/workflows/node.js.yml/dispatches"
