@@ -1,4 +1,4 @@
-name: Trigger Node.js Workflow
+name: Trigger Build and Deploy Workflow
 
 on:
   push:
@@ -6,12 +6,12 @@ on:
       - master
   workflow_dispatch:
 
-permissions:
-  contents: read
-  actions: write  # Ensure the token can trigger workflows
-
 jobs:
   trigger-nodejs-workflow:
+    permissions:
+      contents: read
+      actions: write  # Ensure the token can trigger workflows
+
     runs-on: ubuntu-latest
 
     steps:
