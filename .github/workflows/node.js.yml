@@ -20,24 +20,50 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  get-branches:
+    runs-on: ubuntu-latest
+    outputs:
+      branches: ${{ steps.get-branches.outputs.branches }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Get list of remote branches and their hashes
+        id: get-branches
+        run: |
+          git fetch --all
+          branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc .)"
+          echo "branches=$branches" >> $GITHUB_OUTPUT
+
   build:
     runs-on: ubuntu-latest
+    needs: get-branches
+    continue-on-error: true
+    outputs:
+      branches: ${{ needs.get-branches.outputs.branches }}
+
+    strategy:
+      matrix:
+        branches: ${{fromJson(needs.get-branches.outputs.branches)}}
 
     steps:
       - uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branches.name }}
 
       - name: Use Node.js
         uses: actions/setup-node@v4
 
       - name: Build web app
         run: |
+          [ -d "puck-ntag215-manager" ]
           cd puck-ntag215-manager
           npm install --no-optional
           npm run build
-          
+
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
+          name: ${{ matrix.branches.hash }}
           path: ./puck-ntag215-manager/dist/
 
   # Deployment job
@@ -48,7 +74,36 @@ jobs:
 
     runs-on: ubuntu-latest
     needs: build
+
     steps:
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: "artifacts"
+
+      - name: Prepare artifacts
+        env:
+          branches: ${{ needs.build.outputs.branches }}
+
+        run: |
+          mkdir -p "dist/"
+          echo "$branches" | jq -c '.[]' | while read -r branch; do
+            name="$(echo "$branch" | jq -r '.name')"
+            hash="$(echo "$branch" | jq -r '.hash')"
+
+            if [ "$name" == "master" ]; then
+              mv "artifacts/$hash"/* "dist/"
+            else
+              mkdir -p "dist/$name"
+              mv "artifacts/$hash"/* "dist/$name/"
+            fi
+          done
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: dist/
+
       - name: Deploy to GitHub Pages
         id: deployment
         uses: actions/deploy-pages@v4
