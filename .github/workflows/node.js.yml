@@ -30,7 +30,7 @@ jobs:
         run: |
           git clone --no-checkout "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" .
           git fetch --all
-          branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc .)"
+          branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc 'map(select(.name != "origin"))')"
           echo "$branches" | jq .
           echo "branches=$branches" >> $GITHUB_OUTPUT
 
@@ -50,10 +50,21 @@ jobs:
         with:
           ref: ${{ matrix.branches.name }}
 
+      - name: Check if compile is needed for this branch
+        id: check_dir
+        run: |
+          if [ -d "puck-ntag215-manager" ]; then
+            echo "exists=true" >> $GITHUB_OUTPUT
+          else
+            echo "exists=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Use Node.js
+        if: ${{ steps.check_dir.outputs.exists == 'true' }}
         uses: actions/setup-node@v4
 
       - name: Build web app
+        if: ${{ steps.check_dir.outputs.exists == 'true' }}
         run: |
           [ -d "puck-ntag215-manager" ]
           cd puck-ntag215-manager
@@ -61,6 +72,7 @@ jobs:
           npm run build
 
       - name: Upload artifact
+        if: ${{ steps.check_dir.outputs.exists == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.branches.hash }}
