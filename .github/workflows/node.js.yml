@@ -27,7 +27,10 @@ jobs:
       - name: Get list of remote branches and their hashes
         id: get-branches
         run: |
-          set -x
+          if [ "${{ runner.debug }}" = "1" ]; then
+            set -x
+          fi
+
           git clone --no-checkout "https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git" .
           git fetch --all
           branches="$(git for-each-ref --format='{"name":"%(refname:short)","hash":"%(objectname)"}' refs/remotes/origin/ | sed 's|origin/||' | jq -sc 'map(select(.name != "origin"))')"
@@ -57,6 +60,10 @@ jobs:
       - name: Check if compile is needed for this branch
         id: check_dir
         run: |
+          if [ "${{ runner.debug }}" = "1" ]; then
+            set -x
+          fi
+
           if [ -d "puck-ntag215-manager" ]; then
             echo "exists=true" | tee "$GITHUB_OUTPUT"
           else
@@ -70,7 +77,10 @@ jobs:
       - name: Build web app
         if: ${{ steps.check_dir.outputs.exists == 'true' }}
         run: |
-          set -x
+          if [ "${{ runner.debug }}" = "1" ]; then
+            set -x
+          fi
+
           cd puck-ntag215-manager
           npm install --no-optional
           npm run build
@@ -110,7 +120,9 @@ jobs:
           branches: ${{ needs.build.outputs.branches }}
 
         run: |
-          set -x
+          if [ "${{ runner.debug }}" = "1" ]; then
+            set -x
+          fi
 
           echo "$branches" | jq -c '.[]' | while read -r branch; do
             name="$(echo "$branch" | jq -r '.name')"
