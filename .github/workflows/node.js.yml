@@ -91,6 +91,10 @@ jobs:
             name="$(echo "$branch" | jq -r '.name')"
             hash="$(echo "$branch" | jq -r '.hash')"
 
+            if [ ! -e "artifacts/$hash" ]; then
+              continue
+            fi
+
             if [ "$name" == "master" ]; then
               mv "artifacts/$hash"/* "dist/"
             else
