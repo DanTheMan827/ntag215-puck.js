@@ -19,7 +19,7 @@
     "@types/bootstrap": "^5.2.10",
     "@types/jquery": "^3.5.32",
     "@types/jszip": "^3.4.1",
-    "@types/node": "^22.10.10",
+    "@types/node": "^22.13.0",
     "@types/web-bluetooth": "0.0.20",
     "acorn": "^5.4.1",
     "arraybuffer-loader": "^1.0.8",
