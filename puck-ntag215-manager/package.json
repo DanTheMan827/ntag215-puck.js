@@ -31,7 +31,7 @@
     "cpy-cli": "^4.2.0",
     "crc-32": "^1.2.2",
     "css-loader": "^7.1.2",
-    "css-minimizer-webpack-plugin": "^4.0.0",
+    "css-minimizer-webpack-plugin": "^7.0.2",
     "cssnano": "^7.0.6",
     "del-cli": "^6.0.0",
     "escodegen": "^1.8.0",
