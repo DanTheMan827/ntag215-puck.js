@@ -338,7 +338,7 @@ export function setBody(body: string | JQuery<HTMLElement>, htmlEscape = true) {
     if (body instanceof $) {
       modalBody.empty().append(body)
     } else {
-      modalBody.empty().html($("<p/>").text(body as any).html())
+      modalBody.empty().html(body as any)
     }
   }
 }
