@@ -53,11 +53,20 @@ jobs:
     continue-on-error: true
 
     steps:
+      - name: Cache dist directory
+        id: cache-dist
+        uses: actions/cache@v3
+        with:
+          path: puck-ntag215-manager/dist
+          key: dist-${{ matrix.branches.hash }}
+
       - uses: actions/checkout@v4
+        if: ${{ steps.cache-dist.outputs.cache-hit != 'true' }}
         with:
           ref: ${{ matrix.branches.name }}
 
       - name: Check if compile is needed for this branch
+        if: ${{ steps.cache-dist.outputs.cache-hit != 'true' }}
         id: check_dir
         run: |
           if [ "${{ runner.debug }}" = "1" ]; then
@@ -71,11 +80,11 @@ jobs:
           fi
 
       - name: Use Node.js
-        if: ${{ steps.check_dir.outputs.exists == 'true' }}
+        if: ${{ steps.check_dir.outputs.exists == 'true' && steps.cache-dist.outputs.cache-hit != 'true' }}
         uses: actions/setup-node@v4
 
       - name: Build web app
-        if: ${{ steps.check_dir.outputs.exists == 'true' }}
+        if: ${{ steps.check_dir.outputs.exists == 'true' && steps.cache-dist.outputs.cache-hit != 'true' }}
         run: |
           if [ "${{ runner.debug }}" = "1" ]; then
             set -x
@@ -86,7 +95,7 @@ jobs:
           npm run build
 
       - name: Upload artifact
-        if: ${{ steps.check_dir.outputs.exists == 'true' }}
+        if: ${{ steps.cache-dist.outputs.cache-hit == 'true' || steps.check_dir.outputs.exists == 'true' }}
         uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.branches.hash }}
