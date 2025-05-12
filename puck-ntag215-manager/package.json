@@ -21,7 +21,7 @@
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.15.17",
     "@types/web-bluetooth": "0.0.21",
-    "acorn": "^5.4.1",
+    "acorn": "^8.14.1",
     "arraybuffer-loader": "^1.0.8",
     "assert": "^2.1.0",
     "babel-loader": "^10.0.0",
