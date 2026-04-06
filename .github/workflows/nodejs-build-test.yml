@@ -24,5 +24,5 @@ jobs:
       - name: Build web app
         run: |
           cd puck-ntag215-manager
-          npm install --no-optional
+          npm install
           npm run build
