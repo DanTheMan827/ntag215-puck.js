@@ -1,10 +1,10 @@
-module.exports = (url: string): Promise<ArrayBuffer> => {
+export default (url: string): Promise<ArrayBuffer> => {
   return new Promise((resolve, reject) => {
-    const oReq = new XMLHttpRequest();
-    oReq.open("GET", url, true);
-    oReq.responseType = "arraybuffer";
+    const oReq = new XMLHttpRequest()
+    oReq.open('GET', url, true)
+    oReq.responseType = 'arraybuffer'
 
-    oReq.onreadystatechange = (e) => {
+    oReq.onreadystatechange = () => {
       if (oReq.readyState === 4) {
         if (oReq.status === 200) {
           resolve(oReq.response)
@@ -14,6 +14,6 @@ module.exports = (url: string): Promise<ArrayBuffer> => {
       }
     }
 
-    oReq.send();
+    oReq.send()
   })
 }

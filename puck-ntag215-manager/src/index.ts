@@ -1,4 +1,4 @@
-require("./style/main.scss")
+import "./style/main.scss"
 
 import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
@@ -8,11 +8,9 @@ import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
 import { EspruinoBoards, SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
 import * as EspruinoHelper from "./espruino"
 import { ModalMessageType, modalMessages } from "./modalMessages"
-import { selectText, selectThis } from "./selectText"
-
-const toArrayBuffer = require("arraybuffer-loader/lib/to-array-buffer.js")
-const slotTemplate = require("./templates/slot.pug")
-const boardTemplate = require("./templates/board-selector.pug")
+import { selectText } from "./selectText"
+import slotTemplate from "./templates/slot.pug"
+import boardTemplate from "./templates/board-selector.pug"
 
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)

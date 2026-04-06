@@ -1,18 +1,24 @@
 {
   "compilerOptions": {
-    "outDir": "./dist/",
-    "moduleResolution": "node",
-    "module": "NodeNext",
+    "target": "ES2020",
+    "module": "ESNext",
+    "moduleResolution": "bundler",
+    "lib": ["ES2020", "DOM", "DOM.Iterable"],
+    "strict": false,
     "noImplicitAny": true,
     "noImplicitThis": true,
-    "target": "es6",
-    "jsx": "react",
     "allowJs": false,
     "sourceMap": true,
     "allowSyntheticDefaultImports": true,
+    "allowImportingTsExtensions": false,
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "noEmit": true,
+    "jsx": "react",
     "typeRoots": [
       "node_modules/@types",
       ".types"
     ]
-  }
+  },
+  "include": ["src", "vite.config.ts"]
 }

@@ -1,5 +1,4 @@
 - projectUrl  = "https://github.com/DanTheMan827/ntag215-puck.js"
-- gitCommit = require('child_process').execSync('git rev-parse HEAD').toString().trim()
 include ./mixins/_githubCorner.pug
 
 html
@@ -10,6 +9,7 @@ html
     link(rel="manifest", href="./site.webmanifest")
     link(rel="icon", href="./favicon.ico", type="image/x-icon")
     link(rel="apple-touch-icon", href="./apple-touch-icon.png")
+    script(type="module", src="/src/index.ts")
     include ./analytics.pug
   body
     +githubCorner(projectUrl , "#fff", "#151513")

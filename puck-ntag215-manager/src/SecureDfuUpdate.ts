@@ -1,7 +1,12 @@
 import SecureDfu from "web-bluetooth-dfu"
 import { SecureDfuPackage } from "./SecureDfuPackage"
+import CRC32 from "crc-32"
 
-const CRC32 = require("crc-32")
+import banglejs from "./firmware/espruino_2v15.767_banglejs.zip"
+import banglejs2 from "./firmware/espruino_2v15.767_banglejs2.zip"
+import pixljs from "./firmware/espruino_2v15.767_pixljs.zip"
+import puckjs from "./firmware/espruino_2v15.767_puckjs.zip"
+import puckjsMinimal from "./firmware/espruino_2v15.767_puckjs_minimal.zip"
 
 export enum EspruinoBoards {
   PuckJS = "PUCKJS",
@@ -26,19 +31,19 @@ export interface SecureDfuUpdateMessage {
 function getFirmware(board: EspruinoBoards): Promise<ArrayBuffer> {
   switch (board) {
     case EspruinoBoards.BangleJS:
-      return require("./firmware/espruino_2v15.767_banglejs.zip")
+      return banglejs
 
     case EspruinoBoards.BangleJS2:
-      return require("./firmware/espruino_2v15.767_banglejs2.zip")
+      return banglejs2
 
     case EspruinoBoards.PuckJS:
-      return require("./firmware/espruino_2v15.767_puckjs.zip")
+      return puckjs
 
     case EspruinoBoards.PuckJSMinimal:
-      return require("./firmware/espruino_2v15.767_puckjs_minimal.zip")
+      return puckjsMinimal
 
     case EspruinoBoards.PixlJS:
-      return require("./firmware/espruino_2v15.767_pixljs.zip")
+      return pixljs
 
     default: throw new Error(`Invalid board: ${board}`)
   }
