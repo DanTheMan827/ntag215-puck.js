@@ -8,6 +8,9 @@
     "build-dev": "vite build --mode development",
     "dev": "vite"
   },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.60.1"
+  },
   "devDependencies": {
     "@types/bootstrap": "^3.4.0",
     "@types/jquery": "^3.5.32",
