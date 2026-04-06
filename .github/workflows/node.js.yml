@@ -91,7 +91,7 @@ jobs:
           fi
 
           cd puck-ntag215-manager
-          npm install --no-optional
+          npm install
           npm run build
 
       - name: Upload artifact
