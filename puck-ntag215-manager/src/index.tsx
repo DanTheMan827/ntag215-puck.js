@@ -1,7 +1,7 @@
 import "./style/main.scss"
 
 import { StrictMode, createElement, Fragment } from 'react'
-import { createRoot, type Root } from 'react-dom/client'
+import { hydrateRoot, createRoot, type Root } from 'react-dom/client'
 import { App } from "./components/App"
 import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
@@ -22,9 +22,16 @@ function qs<T extends HTMLElement>(selector: string): T {
   return document.querySelector<T>(selector)!
 }
 
-// Mount the React app first, then wire up puck logic once the DOM is ready.
-const appRoot = createRoot(document.getElementById('root')!)
-appRoot.render(createElement(StrictMode, null, createElement(App)))
+// In production the root div is pre-rendered server-side; use hydrateRoot to
+// attach React to the existing DOM without discarding the pre-rendered HTML.
+// In development there is no pre-rendered content, so fall back to createRoot.
+const rootEl = document.getElementById('root')!
+const app = createElement(StrictMode, null, createElement(App))
+if (__PRODUCTION__) {
+  hydrateRoot(rootEl, app)
+} else {
+  createRoot(rootEl).render(app)
+}
 
 document.addEventListener('app:mounted', () => {
   const mainContainer = qs('#mainContainer')
@@ -369,4 +376,4 @@ document.addEventListener('app:mounted', () => {
   ;[qs('#puckConnect'), qs('#updateFirmware'), qs('#uploadScript'), qs('#puckDisconnect'), qs('#puckName'), qs('#puckUart')].forEach(btn => {
     (btn as HTMLButtonElement).disabled = false
   })
-})
+}, { once: true })

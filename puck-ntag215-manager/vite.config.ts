@@ -5,6 +5,7 @@ import react from '@vitejs/plugin-react'
 import { espruinoLoaderPlugin } from './src/plugins/espruino-loader'
 import { firmwareLoaderPlugin } from './src/plugins/firmware-loader'
 import { markdownPlugin } from './src/plugins/markdown-plugin'
+import { prerenderPlugin } from './src/plugins/prerender-plugin'
 
 function getGitCommit(): string {
   try {
@@ -28,6 +29,7 @@ export default defineConfig(({ mode }) => {
       markdownPlugin(),
       espruinoLoaderPlugin(),
       firmwareLoaderPlugin({ download: isProd }),
+      prerenderPlugin(),
     ],
 
     define: {
