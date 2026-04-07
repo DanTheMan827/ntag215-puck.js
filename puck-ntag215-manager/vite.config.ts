@@ -26,15 +26,33 @@ export default defineConfig(({ mode }) => {
     },
 
     resolve: {
-      alias: {
-        jquery: path.resolve(__dirname, 'node_modules/jquery/src/jquery.js'),
-        'web-bluetooth-dfu': path.resolve(
-          __dirname,
-          'node_modules/web-bluetooth-dfu/lib/index.js'
-        ),
-        acorn: path.resolve(__dirname, 'node_modules/acorn'),
-        esprima: path.resolve(__dirname, 'node_modules/esprima'),
-      },
+      alias: [
+        {
+          find: 'jquery',
+          replacement: path.resolve(__dirname, 'node_modules/jquery/src/jquery.js'),
+        },
+        {
+          find: 'web-bluetooth-dfu',
+          replacement: path.resolve(
+            __dirname,
+            'node_modules/web-bluetooth-dfu/lib/index.js'
+          ),
+        },
+        {
+          find: 'acorn',
+          replacement: path.resolve(__dirname, 'node_modules/acorn'),
+        },
+        {
+          find: 'esprima',
+          replacement: path.resolve(__dirname, 'node_modules/esprima'),
+        },
+        // Resolve webpack-style tilde-prefixed paths (e.g. url('~bootstrap-sass/...'))
+        // used in CSS url() references generated from SCSS.
+        {
+          find: /^~(.+)$/,
+          replacement: path.resolve(__dirname, 'node_modules/$1'),
+        },
+      ],
       extensions: ['.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'],
     },
 
