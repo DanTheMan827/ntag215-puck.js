@@ -68,6 +68,11 @@ export function espruinoLoaderPlugin(): Plugin {
       easyRequire('esprima', 'plugins/minify.js')
       easyRequire('utf8', 'plugins/unicode.js')
 
+      // terminal.js uses $ as a global — provide jQuery as a module-scoped default import
+      if (resourceFile === 'core/terminal.js' && hasModule('jquery')) {
+        filePreOutput.push(`import $ from "jquery";`)
+      }
+
       const fileContent = cleanIncludes(
         fs.readFileSync(path.join(espruinoPath, resourceFile), { encoding: 'utf8' })
       )

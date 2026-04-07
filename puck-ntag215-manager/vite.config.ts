@@ -33,6 +33,10 @@ export default defineConfig(({ mode }) => {
           replacement: path.resolve(__dirname, 'node_modules/events'),
         },
         {
+          find: 'jquery',
+          replacement: path.resolve(__dirname, 'node_modules/jquery/dist/jquery.js'),
+        },
+        {
           find: 'web-bluetooth-dfu',
           replacement: path.resolve(
             __dirname,
