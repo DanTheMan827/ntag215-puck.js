@@ -19,4 +19,4 @@ case kind
       =totalBytes
       =" bytes"
     .progress(style="margin-bottom: 0;")
-      .progress-bar.progress-bar-info(style=`width: ${(currentBytes / totalBytes) * 100}%`)
+      .progress-bar.bg-info(role="progressbar" style=`width: ${(currentBytes / totalBytes) * 100}%`)

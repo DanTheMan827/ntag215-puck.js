@@ -1,14 +1,14 @@
 import template from "./templates/modal.pug"
 import { sleep } from "./sleep"
-import "bootstrap"
+import { Modal } from "bootstrap"
 
-let body: JQuery<HTMLElement>
-let alertModal: JQuery<HTMLElement>
-let modalHeader: JQuery<HTMLElement>
-let modalFooter: JQuery<HTMLElement>
-let modalTitle: JQuery<HTMLElement>
-let modalBody: JQuery<HTMLElement>
-let modalClose: JQuery<HTMLElement>
+let modalElement: HTMLElement | undefined
+let bsModal: Modal | undefined
+let modalHeader: HTMLElement | undefined
+let modalFooter: HTMLElement | undefined
+let modalTitle: HTMLElement | undefined
+let modalBody: HTMLElement | undefined
+let modalClose: HTMLElement | undefined
 let modalResolve: (value: ModalResult | PromiseLike<ModalResult>) => void | undefined
 let modalReject: (reason?: any) => void | undefined
 
@@ -30,10 +30,10 @@ export interface ModalTitleOptions {
 }
 
 export interface ModalMessageOptions {
-  message?: string | JQuery<HTMLElement>
+  message?: string | HTMLElement
 
   /**
-   * If `message` is a JQuery object, this will always be false.
+   * If `message` is an HTMLElement, this will always be false.
    */
   htmlEscapeBody?: boolean
 }
@@ -42,7 +42,7 @@ export interface ModalSetOptions extends ModalTitleOptions, ModalMessageOptions 
 
 export interface ModalShowOptions extends ModalTitleOptions, ModalMessageOptions {
   title: string
-  message: string | JQuery<HTMLElement>
+  message: string | HTMLElement
   preventClose?: boolean
 
   /**
@@ -112,20 +112,13 @@ export enum ModalResult {
   ButtonCloseX = 255
 }
 
-$(() => {
-  body = $(document.body)
-})
-
-async function modalBackgroundClick(e: any) {
+async function modalBackgroundClick(e: MouseEvent) {
   if (!modalCanClose) {
     return
   }
 
-  if (e.target.class === "modal-dialog") {
-    return
-  }
-
-  if ($(e.target).closest('.modal-dialog').length) {
+  const target = e.target as HTMLElement
+  if (target.classList.contains('modal-dialog') || target.closest('.modal-dialog')) {
     return
   }
 
@@ -141,8 +134,8 @@ async function modalBackgroundClick(e: any) {
   }
 }
 
-async function modalButtonClick(this: HTMLElement | JQuery<HTMLElement>, e: any) {
-  const $this = $(this)
+async function modalButtonClick(this: HTMLElement, _e: Event) {
+  const dataValue = this.dataset.closeValue
 
   const resolve = modalResolve
   const reject = modalReject
@@ -153,8 +146,7 @@ async function modalButtonClick(this: HTMLElement | JQuery<HTMLElement>, e: any)
   await hideModal()
 
   if (resolve) {
-    const dataValue: string = $this.data("close-value").toString()
-    if (dataValue.match(/^\d+$/)) {
+    if (dataValue && dataValue.match(/^\d+$/)) {
       const intValue = parseInt(dataValue, 10)
 
       if ([ModalResult.ButtonYes, ModalResult.ButtonNo, ModalResult.ButtonCancel, ModalResult.ButtonClose, ModalResult.ButtonCloseX, ModalResult.ButtonNext].includes(intValue)) {
@@ -163,6 +155,21 @@ async function modalButtonClick(this: HTMLElement | JQuery<HTMLElement>, e: any)
     } else {
       reject(new Error(`Unknown button value: ${dataValue}`))
     }
+  }
+}
+
+function setElementContent(el: HTMLElement, content: string | HTMLElement, htmlEscape: boolean) {
+  el.innerHTML = ''
+  if (content instanceof HTMLElement) {
+    el.appendChild(content)
+  } else if (htmlEscape) {
+    const p = document.createElement('p')
+    p.textContent = content
+    el.appendChild(p)
+  } else {
+    const p = document.createElement('p')
+    p.innerHTML = content
+    el.appendChild(p)
   }
 }
 
@@ -180,7 +187,7 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
   } = options
   const buttons = options.buttons || (preventClose ? ModalButtonTypes.None : ModalButtonTypes.Close)
 
-  if (options.message instanceof $) {
+  if (options.message instanceof HTMLElement) {
     htmlEscapeBody = false
   }
 
@@ -190,12 +197,6 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
 
   const buttonList: ModalTemplateButton[] = []
 
-  /*
-    None = 1,
-    Close,
-    YesNo,
-    YesNoCancel
-  */
   switch (buttons) {
     case ModalButtonTypes.Close:
       buttonList.push({
@@ -238,60 +239,56 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
       break
   }
 
-  const newModal = $(template({
-    buttons: buttonList
-  }))
+  const wrapper = document.createElement('div')
+  wrapper.innerHTML = template({ buttons: buttonList })
+  const newModalEl = wrapper.firstElementChild as HTMLElement
 
-  if (alertModal) {
-    alertModal.remove()
+  if (modalElement) {
+    modalElement.remove()
   }
 
-  alertModal = newModal
-  modalHeader = newModal.find(".modal-header")
-  modalFooter = newModal.find(".modal-footer")
-  modalTitle = newModal.find(".modal-title")
-  modalBody = newModal.find(".modal-body")
-  modalClose = newModal.find(".close.close-modal")
-  newModal.find(".close-modal[data-close-value]").on("click", modalButtonClick)
-  newModal.on("click", modalBackgroundClick)
+  modalElement = newModalEl
+  modalHeader = newModalEl.querySelector('.modal-header') as HTMLElement
+  modalFooter = newModalEl.querySelector('.modal-footer') as HTMLElement
+  modalTitle = newModalEl.querySelector('.modal-title') as HTMLElement
+  modalBody = newModalEl.querySelector('.modal-body') as HTMLElement
+  modalClose = newModalEl.querySelector('.btn-close.close-modal') as HTMLElement
 
-  $(document.body).append(newModal)
+  newModalEl.querySelectorAll<HTMLElement>('.close-modal[data-close-value]').forEach(btn => {
+    btn.addEventListener('click', function(e) { modalButtonClick.call(this, e) })
+  })
+  newModalEl.addEventListener('click', modalBackgroundClick)
+
+  document.body.appendChild(newModalEl)
 
   modalShowing = true
   if (title != null) {
-    modalHeader.show()
+    modalHeader.style.display = ''
     if (htmlEscapeTitle) {
-      modalTitle.text(title)
+      modalTitle.textContent = title
     } else {
-      modalTitle.html(title)
+      modalTitle.innerHTML = title
     }
   } else {
-    modalHeader.hide()
+    modalHeader.style.display = 'none'
   }
 
-  if (htmlEscapeBody) {
-    modalBody.empty().append($("<p />").text(message as string))
-  } else {
-    if (message instanceof $) {
-      modalBody.empty().append(message)
-    } else {
-      modalBody.empty().html($("<p/>").text(message as any).html())
-    }
-  }
+  setElementContent(modalBody, message, htmlEscapeBody)
 
   if (preventClose) {
-    modalFooter.hide()
-    modalClose.hide()
+    if (modalFooter) modalFooter.style.display = 'none'
+    if (modalClose) modalClose.style.display = 'none'
   } else {
-    modalFooter.show()
-    modalClose.show()
+    if (modalFooter) modalFooter.style.display = ''
+    if (modalClose) modalClose.style.display = ''
   }
 
   if (dialog && buttonList.length > 0) {
-    modalFooter.show()
+    if (modalFooter) modalFooter.style.display = ''
   }
 
-  alertModal.modal({ backdrop: 'static', keyboard: false, show: true })
+  bsModal = new Modal(newModalEl, { backdrop: 'static', keyboard: false })
+  bsModal.show()
 
   modalCanClose = preventClose !== true
 
@@ -313,31 +310,23 @@ export function setTitle(title: string, htmlEscape = true) {
   }
 
   if (title != null) {
-    modalHeader.show()
+    modalHeader.style.display = ''
     if (htmlEscape) {
-      modalTitle.text(title)
+      modalTitle.textContent = title
     } else {
-      modalTitle.html(title)
+      modalTitle.innerHTML = title
     }
   } else {
-    modalHeader.hide()
+    modalHeader.style.display = 'none'
   }
 }
 
-export function setBody(body: string | JQuery<HTMLElement>, htmlEscape = true) {
+export function setBody(body: string | HTMLElement, htmlEscape = true) {
   if (!modalBody) {
     throw new Error("Modal is not presenting.")
   }
 
-  if (htmlEscape && !(body instanceof $)) {
-    modalBody.empty().append($("<p />").text(body as string))
-  } else {
-    if (body instanceof $) {
-      modalBody.empty().append(body)
-    } else {
-      modalBody.empty().html(body as any)
-    }
-  }
+  setElementContent(modalBody, body, htmlEscape)
 }
 
 export function setModal(options: ModalSetOptions) {
@@ -358,22 +347,17 @@ export function setModal(options: ModalSetOptions) {
 }
 
 export async function hideModal() {
-  if (!alertModal) {
+  if (!modalElement || !bsModal) {
     return
   }
 
-  const backdrop = $("body > .modal-backdrop")
-  alertModal.modal("hide")
-  await sleep(200)
-  backdrop.remove()
-  body.removeClass("modal-open").css("padding-right", "")
+  bsModal.hide()
+  await sleep(300)
+  modalElement.remove()
   modalShowing = false
 
-  if (alertModal) {
-    alertModal.remove()
-  }
-
-  alertModal =
+  modalElement =
+  bsModal =
   modalHeader =
   modalFooter =
   modalTitle =
@@ -386,3 +370,4 @@ export async function hideModal() {
     modalReject = undefined
   }
 }
+

@@ -40,5 +40,8 @@
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
     "web-bluetooth-dfu": "^1.2.1"
+  },
+  "dependencies": {
+    "events": "^3.3.0"
   }
 }

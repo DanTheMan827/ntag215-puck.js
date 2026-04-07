@@ -2,7 +2,7 @@ import "./style/main.scss"
 
 import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
-import { showModal, hideModal, setModal, ModalShowOptions, ModalButtonTypes, ModalResult } from "./modal"
+import { showModal, hideModal, setModal, ModalButtonTypes, ModalResult } from "./modal"
 import { saveData, readFile } from "./fileHelpers"
 import { supportsBluetooth, bluetoothOrError } from "./browserCheck"
 import { EspruinoBoards, SecureDfuUpdate, SecureDfuUpdateMessage, SecureDfuUpdateProgress } from "./SecureDfuUpdate"
@@ -15,11 +15,15 @@ import boardTemplate from "./templates/board-selector.pug"
 const anyWindow = (window as any)
 const puck = anyWindow.puck = new Puck(console.log, console.warn, console.error)
 
-$(() => {
-  const mainContainer = $("#mainContainer")
-  const slotsContainer = $("#slotsContainer")
-  const scriptTextArea = $("#code")
-  const firmwareName = $("#code").text().match(/const FIRMWARE_NAME = \"([^"]+)\";/)[1]
+function qs<T extends HTMLElement>(selector: string): T {
+  return document.querySelector<T>(selector)!
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  const mainContainer = qs('#mainContainer')
+  const slotsContainer = qs('#slotsContainer')
+  const scriptTextArea = qs<HTMLTextAreaElement>('#code')
+  const firmwareName = qs('#code').textContent!.match(/const FIRMWARE_NAME = "([^"]+)";/)![1]
 
   if (supportsBluetooth !== true) {
     showModal({
@@ -47,7 +51,7 @@ $(() => {
   }
 
   async function populateSlots() {
-    slotsContainer.empty()
+    slotsContainer.innerHTML = ''
 
     if (puck.isConnected) {
       const info = await puck.getSlotInformation()
@@ -57,7 +61,7 @@ $(() => {
           message: `Reading Slot ${i + 1}`
         })
         const slotInfo = await puck.readSlotSummary(i)
-        slotsContainer.append(getSlotElement(i, slotInfo))
+        slotsContainer.appendChild(getSlotElement(i, slotInfo))
       }
     }
   }
@@ -66,13 +70,14 @@ $(() => {
     return Array.prototype.map.call(data, (e: number) => ("00" + e.toString(16)).slice(-2)).join("")
   }
 
-  async function updateSlotElement(slot: number, oldElement: JQuery<HTMLElement>) {
+  async function updateSlotElement(slot: number, oldElement: HTMLElement) {
     const info = await puck.readSlotSummary(slot)
-    getSlotElement(slot, info).insertAfter(oldElement)
+    const newEl = getSlotElement(slot, info)
+    oldElement.parentNode!.insertBefore(newEl, oldElement.nextSibling)
     oldElement.remove()
   }
 
-  async function writeSlot(slot: number, data: Uint8Array, element: JQuery<HTMLElement>) {
+  async function writeSlot(slot: number, data: Uint8Array, element: HTMLElement) {
     await showModal({
       title: "Please Wait",
       message: `Writing slot ${slot + 1}`,
@@ -83,13 +88,15 @@ $(() => {
     await hideModal()
   }
 
-  function getSlotElement(slot: number, summary: Uint8Array): JQuery<HTMLElement> {
-    const element = $(slotTemplate({
+  function getSlotElement(slot: number, summary: Uint8Array): HTMLElement {
+    const wrapper = document.createElement('div')
+    wrapper.innerHTML = slotTemplate({
       slot,
       uid: array2hex(summary.slice(0, 8))
-    }))
+    })
+    const element = wrapper.firstElementChild as HTMLElement
 
-    element.find("a.slot-download-link").on("click", async (e) => {
+    element.querySelector('a.slot-download-link')!.addEventListener('click', async (e) => {
       e.preventDefault()
 
       try {
@@ -109,7 +116,7 @@ $(() => {
       }
     })
 
-    element.find("a.slot-upload-link").on("click", async (e) => {
+    element.querySelector('a.slot-upload-link')!.addEventListener('click', async (e) => {
       e.preventDefault()
 
       try {
@@ -123,13 +130,13 @@ $(() => {
       }
     })
 
-    element.find("a.slot-clear-link").on("click", async (e) => {
+    element.querySelector('a.slot-clear-link')!.addEventListener('click', async (e) => {
       e.preventDefault()
 
       await writeSlot(slot, getBlankNtag(), element)
     })
 
-    element.find("a.slot-select-link").on("click", async (e) => {
+    element.querySelector('a.slot-select-link')!.addEventListener('click', async (e) => {
       e.preventDefault()
 
       try {
@@ -151,7 +158,7 @@ $(() => {
     return element
   }
 
-  async function connectPuck(e: Event | JQuery.Event) {
+  async function connectPuck(e: Event) {
     e.preventDefault()
 
     try {
@@ -161,20 +168,21 @@ $(() => {
         message: "Connecting to puck",
         preventClose: true
       })
-      await puck.connect(async (ev) => {
+      await puck.connect(async (ev: Event) => {
         await disconnectPuck(ev)
       })
 
       if (puck.isConnected) {
+        const puckUartBtn = qs('#puckUart')
         if (puck.isUart) {
-          $("#puckUart").hide()
+          puckUartBtn.style.display = 'none'
         } else {
-          $("#puckUart").show()
+          puckUartBtn.style.display = ''
         }
 
         await populateSlots()
 
-        mainContainer.addClass("connected")
+        mainContainer.classList.add("connected")
       }
 
       if (firmwareName !== puck.firmwareName) {
@@ -201,7 +209,7 @@ $(() => {
     }
   }
 
-  async function disconnectPuck(e: Event | JQuery.Event) {
+  async function disconnectPuck(e: Event) {
     e.preventDefault()
     try {
       if (puck.isConnected) {
@@ -213,7 +221,7 @@ $(() => {
         await puck.disconnect()
       }
 
-      mainContainer.removeClass("connected")
+      mainContainer.classList.remove("connected")
 
       await hideModal()
     } catch (error) {
@@ -224,7 +232,7 @@ $(() => {
     }
   }
 
-  async function enableUart(e: Event | JQuery.Event) {
+  async function enableUart(e: Event) {
     e.preventDefault()
     try {
       await showModal({
@@ -243,7 +251,7 @@ $(() => {
     }
   }
 
-  async function changeName(e: Event | JQuery.Event) {
+  async function changeName(e: Event) {
     e.preventDefault()
     try {
       await showModal({
@@ -293,24 +301,25 @@ $(() => {
       }
     ]
 
-    const html = $(boardTemplate({ boards }))
-    const selector = html.find("select")
+    const wrapper = document.createElement('div')
+    wrapper.innerHTML = boardTemplate({ boards })
+    const selector = wrapper.querySelector<HTMLSelectElement>('select')!
 
     const result = await showModal({
       title: "Select your board",
-      message: html,
+      message: wrapper,
       dialog: true,
       buttons: ModalButtonTypes.Next
     })
 
     if (result === ModalResult.ButtonNext) {
-      return selector.val() as EspruinoBoards
+      return selector.value as EspruinoBoards
     }
 
     throw new Error("User cancelled board selection.")
   }
 
-  async function uploadScript(e: Event | JQuery.Event) {
+  async function uploadScript(e: Event) {
     try {
       await bluetoothOrError()
       await showModal({
@@ -392,7 +401,7 @@ $(() => {
     }
   }
 
-  async function updateFirmware(e: Event | JQuery.Event, throwError?: boolean, board?: EspruinoBoards) {
+  async function updateFirmware(e: Event, throwError?: boolean, board?: EspruinoBoards) {
     let modalShown = false
     let canClose = true
 
@@ -465,15 +474,24 @@ $(() => {
     }
   }
 
-  $("#puckConnect").on("click", connectPuck).prop("disabled", false)
-  $("#puckDisconnect").on("click", disconnectPuck).prop("disabled", false)
-  $("#puckUart").on("click", enableUart).prop("disabled", false)
-  $("#puckName").on("click", changeName).prop("disabled", false)
-  $("#uploadScript").on("click", uploadScript).prop("disabled", false)
-  $("#updateFirmware").on("click", updateFirmware).prop("disabled", false)
-  $("#code, #readme a[href$='ntag215.js']").on("click", (e) => {
-    e.preventDefault()
+  const on = (sel: string, ev: string, fn: EventListener) =>
+    qs(sel).addEventListener(ev, fn)
 
-    selectText(scriptTextArea[0])
+  on('#puckConnect', 'click', connectPuck)
+  on('#puckDisconnect', 'click', disconnectPuck)
+  on('#puckUart', 'click', enableUart)
+  on('#puckName', 'click', changeName)
+  on('#uploadScript', 'click', uploadScript)
+  on('#updateFirmware', 'click', updateFirmware)
+
+  ;[qs('#code'), ...Array.from(document.querySelectorAll<HTMLAnchorElement>('#readme a[href$="ntag215.js"]'))].forEach(el => {
+    el.addEventListener('click', (e) => {
+      e.preventDefault()
+      selectText(scriptTextArea)
+    })
+  })
+
+  ;[qs('#puckConnect'), qs('#updateFirmware'), qs('#uploadScript'), qs('#puckDisconnect'), qs('#puckName'), qs('#puckUart')].forEach(btn => {
+    (btn as HTMLButtonElement).disabled = false
   })
 })

@@ -7,9 +7,8 @@ export enum ModalMessageType {
   FirmwareUpdate = "firmware-update"
 }
 
-export function modalMessages(kind: ModalMessageType, options: any = { }): JQuery<HTMLElement> {
-  return $(template({
-    kind,
-    ...options
-  }))
+export function modalMessages(kind: ModalMessageType, options: any = { }): HTMLElement {
+  const wrapper = document.createElement('div')
+  wrapper.innerHTML = template({ kind, ...options })
+  return wrapper
 }

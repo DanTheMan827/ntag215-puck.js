@@ -1,12 +1,12 @@
-#alertModal.modal.fade
+#alertModal.modal.fade(tabindex="-1" aria-hidden="true")
   .modal-dialog
     .modal-content
       .modal-header
-        button.close.close-modal(data-close-value=255) &times;
-        h4.modal-title
+        h5.modal-title
+        button.btn-close.close-modal(type="button" aria-label="Close" data-close-value=255)
       .modal-body
 
       if (buttons && buttons.length > 0)
         .modal-footer
           each button in buttons
-            button.btn.btn-default.close-modal(data-close-value=button.value)=button.label
+            button.btn.btn-secondary.close-modal(data-close-value=button.value)=button.label

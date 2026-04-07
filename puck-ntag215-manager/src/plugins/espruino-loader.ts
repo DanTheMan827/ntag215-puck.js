@@ -57,7 +57,7 @@ export function espruinoLoaderPlugin(): Plugin {
       }
 
       if (resourceFile !== 'espruino.js') {
-        filePreOutput.push(`import Espruino from "${PREFIX}espruino.js";`)
+        filePreOutput.push(`import Espruino from "${PREFIX}espruino/espruino.js";`)
       }
 
       filePostOutput.push('export default Espruino;')

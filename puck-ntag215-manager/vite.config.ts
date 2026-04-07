@@ -1,6 +1,5 @@
 import { defineConfig } from 'vite'
 import path from 'path'
-import inject from '@rollup/plugin-inject'
 import { espruinoLoaderPlugin } from './src/plugins/espruino-loader'
 import { firmwareLoaderPlugin } from './src/plugins/firmware-loader'
 import { pugPlugin } from './src/plugins/pug-plugin'
@@ -30,8 +29,8 @@ export default defineConfig(({ mode }) => {
     resolve: {
       alias: [
         {
-          find: 'jquery',
-          replacement: path.resolve(__dirname, 'node_modules/jquery/src/jquery.js'),
+          find: 'events',
+          replacement: path.resolve(__dirname, 'node_modules/events'),
         },
         {
           find: 'web-bluetooth-dfu',
@@ -48,35 +47,8 @@ export default defineConfig(({ mode }) => {
           find: 'esprima',
           replacement: path.resolve(__dirname, 'node_modules/esprima'),
         },
-        // Resolve webpack-style tilde-prefixed paths (e.g. url('~bootstrap-sass/...'))
-        // used in CSS url() references generated from SCSS.
-        {
-          find: /^~(.+)$/,
-          replacement: path.resolve(__dirname, 'node_modules/$1'),
-        },
       ],
       extensions: ['.wasm', '.mjs', '.ts', '.tsx', '.js', '.jsx', '.json'],
-    },
-
-    css: {
-      preprocessorOptions: {
-        scss: {
-          // Map the legacy webpack `~package` tilde syntax to bare package names
-          // so existing SCSS files work without modification.
-          // Modern Dart Sass requires the new Importer interface.
-          importers: [
-            {
-              findFileUrl(url: string) {
-                if (!url.startsWith('~')) return null
-                return new URL(
-                  'node_modules/' + url.slice(1),
-                  import.meta.url
-                )
-              },
-            },
-          ],
-        },
-      },
     },
 
     build: {
