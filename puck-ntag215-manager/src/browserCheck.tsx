@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react'
+
 declare const chrome: any
 declare const window: any
 
@@ -43,16 +45,28 @@ export function isProgressiveWebApp() {
   )
 }
 
-export const supportsBluetooth = ((): true | string => {
+export const supportsBluetooth = ((): true | ReactNode => {
   if (typeof navigator === "undefined") {
     return "Not running in a browser"
   }
 
   if (!navigator.bluetooth) {
     if (isAppleDevice()) {
-      return "Safari on iOS has no Web Bluetooth support. You need to use <a href=\"https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055\" target=\"_blank\">Bluefy – Web BLE Browser</a>"
+      return (
+        <p>
+          Safari on iOS has no Web Bluetooth support. You need to use{' '}
+          <a href="https://apps.apple.com/us/app/bluefy-web-ble-browser/id1492822055" target="_blank" rel="noreferrer">
+            Bluefy – Web BLE Browser
+          </a>
+        </p>
+      )
     } else if (isChrome() && isLinux()) {
-      return "Chrome on Linux requires <code>chrome://flags/#enable-experimental-web-platform-features</code> to be enabled."
+      return (
+        <p>
+          Chrome on Linux requires{' '}
+          <code>chrome://flags/#enable-experimental-web-platform-features</code> to be enabled.
+        </p>
+      )
     } else if (isFirefox()) {
       return "Firefox doesn't support Web Bluetooth - try using Chrome"
     } else {

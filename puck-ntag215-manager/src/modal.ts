@@ -1,302 +1,137 @@
-const template: (options?: ModalTemplateOptions) => string = require("./templates/modal.pug")
-const $ = require("jquery") as JQueryStatic
+import { createElement, Fragment, type ReactNode } from 'react'
+import { createRoot, type Root } from 'react-dom/client'
+import { Modal as BsModal } from 'bootstrap'
+import { AlertModal } from './components/AlertModal'
+import { sleep } from './sleep'
+import {
+  ModalButtonTypes,
+  ModalResult,
+  type ModalTemplateButton,
+  type ModalSetOptions,
+  type ModalShowOptions,
+} from './modalTypes'
 
-let body: JQuery<HTMLElement>
-let alertModal: JQuery<HTMLElement>
-let modalHeader: JQuery<HTMLElement>
-let modalFooter: JQuery<HTMLElement>
-let modalTitle: JQuery<HTMLElement>
-let modalBody: JQuery<HTMLElement>
-let modalClose: JQuery<HTMLElement>
-let modalResolve: (value: ModalResult | PromiseLike<ModalResult>) => void | undefined
-let modalReject: (reason?: any) => void | undefined
+// Re-export all types/enums so existing imports from './modal' keep working.
+export {
+  ModalButtonTypes,
+  ModalResult,
+  type ModalTemplateButton,
+  type ModalSetOptions,
+  type ModalShowOptions,
+} from './modalTypes'
+export type {
+  ModalTitleOptions,
+  ModalMessageOptions,
+} from './modalTypes'
 
+// ---------- module state ----------
+let container: HTMLDivElement | null = null
+let root: Root | null = null
+let bsInstance: BsModal | null = null
 let modalShowing = false
-let modalCanClose = true
+let modalResolve: ((v: ModalResult) => void) | null = null
+let modalReject: ((e: unknown) => void) | null = null
 
-import { sleep } from "./sleep"
+// Current render props (kept so setModal can do partial updates).
+let curTitle: string | undefined
+let curBody: ReactNode
+let curButtons: ModalTemplateButton[]
+let curPreventClose: boolean
 
-require("bootstrap")
+// ---------- helpers ----------
 
-export interface ModalTemplateButton {
-  value: ModalResult,
-  label: string
-}
-
-export interface ModalTemplateOptions {
-  buttons?: ModalTemplateButton[]
-}
-
-export interface ModalTitleOptions {
-  title?: string
-  htmlEscapeTitle?: boolean
-}
-
-export interface ModalMessageOptions {
-  message?: string | JQuery<HTMLElement>
-
-  /**
-   * If `message` is a JQuery object, this will always be false.
-   */
-  htmlEscapeBody?: boolean
-}
-
-export interface ModalSetOptions extends ModalTitleOptions, ModalMessageOptions {}
-
-export interface ModalShowOptions extends ModalTitleOptions, ModalMessageOptions {
-  title: string
-  message: string | JQuery<HTMLElement>
-  preventClose?: boolean
-
-  /**
-   * Whether to wait for a dismissal before resolving the promise.
-   */
-  dialog?: boolean
-
-  /** The button or buttons to present to the user */
-  buttons?: ModalButtonTypes
-}
-
-/**
- * Does nothing... yet...
- */
-export enum ModalButtonTypes {
-  None,
-  Close,
-  YesNo,
-  YesNoCancel,
-  Next
-}
-
-export enum ModalResult {
-  /**
-   * Returned if dialog is false and the modal is shown.
-   */
-  ModalShown,
-
-  /**
-   * Returned when the modal is dismissed with a call to HideModal.
-   */
-  ScriptDismiss,
-
-  /**
-   * Returned when the user dismisses the dialog by clicking the X, clicking on the background, or using escape.
-   */
-  BackgroundClick,
-
-  /**
-   * User pressed the "Close" button.
-   */
-  ButtonClose,
-
-  /**
-   * User pressed the "Yes" button.
-   */
-  ButtonYes,
-
-  /**
-   * User pressed the "No" button.
-   */
-  ButtonNo,
-
-  /**
-   * User pressed the "Cancel" button.
-   */
-  ButtonCancel,
-
-  /**
-   * User pressed the "Next" button.
-   */
-  ButtonNext,
-
-  /**
-   * User pressed the "X" button in the corner of the window.
-   */
-  ButtonCloseX = 255
-}
-
-$(() => {
-  body = $(document.body)
-})
-
-async function modalBackgroundClick(e: any) {
-  if (!modalCanClose) {
-    return
+function ensureRoot(): Root {
+  if (!container || !root) {
+    container = document.createElement('div')
+    container.id = 'react-modal-portal'
+    document.body.appendChild(container)
+    root = createRoot(container)
   }
+  return root
+}
 
-  if (e.target.class === "modal-dialog") {
-    return
-  }
+function doRender() {
+  ensureRoot().render(
+    createElement(
+      AlertModal,
+      {
+        title: curTitle,
+        buttons: curButtons,
+        preventClose: curPreventClose,
+        onClose: handleClose,
+        onMount: (bs) => { bsInstance = bs },
+      },
+      curBody,
+    ),
+  )
+}
 
-  if ($(e.target).closest('.modal-dialog').length) {
-    return
-  }
-
+/** Called by the AlertModal when any close action occurs (button click or X). */
+async function handleClose(result: ModalResult) {
+  // Resolve the promise before hiding so callers can still read modal-hosted
+  // React state (e.g. a <select> ref inside BoardSelector) synchronously.
   const resolve = modalResolve
+  modalResolve = null
+  modalReject = null
 
-  modalResolve = undefined
-  modalReject = undefined
+  if (resolve) resolve(result)
 
-  await hideModal()
+  bsInstance?.hide()
+  await sleep(300)
+  ensureRoot().render(createElement(Fragment, null))
+  modalShowing = false
+  bsInstance = null
+}
 
-  if (resolve) {
-    resolve(ModalResult.BackgroundClick)
+function buildButtonList(type: ModalButtonTypes): ModalTemplateButton[] {
+  switch (type) {
+    case ModalButtonTypes.Close:
+      return [{ label: 'Close', value: ModalResult.ButtonClose }]
+    case ModalButtonTypes.YesNo:
+      return [
+        { label: 'Yes', value: ModalResult.ButtonYes },
+        { label: 'No', value: ModalResult.ButtonNo },
+      ]
+    case ModalButtonTypes.YesNoCancel:
+      return [
+        { label: 'Yes', value: ModalResult.ButtonYes },
+        { label: 'No', value: ModalResult.ButtonNo },
+        { label: 'Cancel', value: ModalResult.ButtonCancel },
+      ]
+    case ModalButtonTypes.Next:
+      return [{ label: 'Next', value: ModalResult.ButtonNext }]
+    case ModalButtonTypes.None:
+    default:
+      return []
   }
 }
 
-async function modalButtonClick(this: HTMLElement | JQuery<HTMLElement>, e: any) {
-  const $this = $(this)
-
-  const resolve = modalResolve
-  const reject = modalReject
-
-  modalResolve = undefined
-  modalReject = undefined
-
-  await hideModal()
-
-  if (resolve) {
-    const dataValue: string = $this.data("close-value").toString()
-    if (dataValue.match(/^\d+$/)) {
-      const intValue = parseInt(dataValue, 10)
-
-      if ([ModalResult.ButtonYes, ModalResult.ButtonNo, ModalResult.ButtonCancel, ModalResult.ButtonClose, ModalResult.ButtonCloseX, ModalResult.ButtonNext].includes(intValue)) {
-        resolve(intValue as ModalResult)
-      }
-    } else {
-      reject(new Error(`Unknown button value: ${dataValue}`))
-    }
+function bodyNode(message: ReactNode, htmlEscapeBody: boolean): ReactNode {
+  if (typeof message === 'string') {
+    return htmlEscapeBody
+      ? createElement('p', null, message)                          // React auto-escapes
+      : createElement('div', { dangerouslySetInnerHTML: { __html: message } })
   }
+  return message
 }
+
+// ---------- public API ----------
 
 export async function showModal(options: ModalShowOptions): Promise<ModalResult> {
-
-  const {
-    title,
-    message,
-    preventClose = false,
-    htmlEscapeTitle = true,
-    dialog = false,
-  } = options
-  let {
-    htmlEscapeBody = true
-  } = options
-  const buttons = options.buttons || (preventClose ? ModalButtonTypes.None : ModalButtonTypes.Close)
-
-  if (options.message instanceof $) {
-    htmlEscapeBody = false
-  }
-
   if (modalShowing) {
     await hideModal()
   }
 
-  const buttonList: ModalTemplateButton[] = []
+  const { title, message, preventClose = false, htmlEscapeBody = true, dialog = false } = options
+  const buttonType = options.buttons ?? (preventClose ? ModalButtonTypes.None : ModalButtonTypes.Close)
 
-  /*
-    None = 1,
-    Close,
-    YesNo,
-    YesNoCancel
-  */
-  switch (buttons) {
-    case ModalButtonTypes.Close:
-      buttonList.push({
-        label: "Close",
-        value: ModalResult.ButtonClose
-      })
-      break
+  curTitle = title
+  curBody = bodyNode(message, htmlEscapeBody)
+  curButtons = buildButtonList(buttonType)
+  curPreventClose = preventClose
 
-    case ModalButtonTypes.YesNo:
-      buttonList.push({
-        label: "Yes",
-        value: ModalResult.ButtonYes
-      }, {
-        label: "No",
-        value: ModalResult.ButtonNo
-      })
-      break
-
-    case ModalButtonTypes.YesNoCancel:
-      buttonList.push({
-        label: "Yes",
-        value: ModalResult.ButtonYes
-      }, {
-        label: "No",
-        value: ModalResult.ButtonNo
-      }, {
-        label: "Cancel",
-        value: ModalResult.ButtonCancel
-      })
-      break
-
-    case ModalButtonTypes.Next:
-      buttonList.push({
-        label: "Next",
-        value: ModalResult.ButtonNext
-      })
-
-    case ModalButtonTypes.None:
-    default:
-      break
-  }
-
-  const newModal = $(template({
-    buttons: buttonList
-  }))
-
-  if (alertModal) {
-    alertModal.remove()
-  }
-
-  alertModal = newModal
-  modalHeader = newModal.find(".modal-header")
-  modalFooter = newModal.find(".modal-footer")
-  modalTitle = newModal.find(".modal-title")
-  modalBody = newModal.find(".modal-body")
-  modalClose = newModal.find(".close.close-modal")
-  newModal.find(".close-modal[data-close-value]").on("click", modalButtonClick)
-  newModal.on("click", modalBackgroundClick)
-
-  $(document.body).append(newModal)
-
+  doRender()
   modalShowing = true
-  if (title != null) {
-    modalHeader.show()
-    if (htmlEscapeTitle) {
-      modalTitle.text(title)
-    } else {
-      modalTitle.html(title)
-    }
-  } else {
-    modalHeader.hide()
-  }
-
-  if (htmlEscapeBody) {
-    modalBody.empty().append($("<p />").text(message as string))
-  } else {
-    if (message instanceof $) {
-      modalBody.empty().append(message)
-    } else {
-      modalBody.empty().html($("<p/>").text(message as any).html())
-    }
-  }
-
-  if (preventClose) {
-    modalFooter.hide()
-    modalClose.hide()
-  } else {
-    modalFooter.show()
-    modalClose.show()
-  }
-
-  if (dialog && buttonList.length > 0) {
-    modalFooter.show()
-  }
-
-  alertModal.modal({ backdrop: 'static', keyboard: false, show: true })
-
-  modalCanClose = preventClose !== true
 
   if (dialog) {
     return new Promise((resolve, reject) => {
@@ -306,86 +141,46 @@ export async function showModal(options: ModalShowOptions): Promise<ModalResult>
   }
 
   await sleep(200)
-
   return ModalResult.ModalShown
 }
 
 export function setTitle(title: string, htmlEscape = true) {
-  if (!modalHeader || !modalTitle) {
-    throw new Error("Modal is not presenting.")
-  }
-
-  if (title != null) {
-    modalHeader.show()
-    if (htmlEscape) {
-      modalTitle.text(title)
-    } else {
-      modalTitle.html(title)
-    }
-  } else {
-    modalHeader.hide()
-  }
+  curTitle = htmlEscape ? title : title // HTML escaping handled by React; kept for API compat
+  doRender()
 }
 
-export function setBody(body: string | JQuery<HTMLElement>, htmlEscape = true) {
-  if (!modalBody) {
-    throw new Error("Modal is not presenting.")
-  }
-
-  if (htmlEscape && !(body instanceof $)) {
-    modalBody.empty().append($("<p />").text(body as string))
-  } else {
-    if (body instanceof $) {
-      modalBody.empty().append(body)
-    } else {
-      modalBody.empty().html(body as any)
-    }
-  }
+export function setBody(body: ReactNode, htmlEscape = true) {
+  curBody = typeof body === 'string' ? bodyNode(body, htmlEscape) : body
+  doRender()
 }
 
 export function setModal(options: ModalSetOptions) {
-  const {
-    title,
-    htmlEscapeTitle = true,
-    message,
-    htmlEscapeBody = true
-  } = options
-
-  if (title != null) {
-    setTitle(title, htmlEscapeTitle)
+  if (options.title !== undefined) curTitle = options.title
+  if (options.message !== undefined) {
+    curBody = bodyNode(options.message, options.htmlEscapeBody ?? true)
   }
-
-  if (message != null) {
-    setBody(message, htmlEscapeBody)
-  }
+  doRender()
 }
 
 export async function hideModal() {
-  if (!alertModal) {
+  if (!bsInstance) {
+    if (root) ensureRoot().render(createElement(Fragment, null))
+    modalShowing = false
+    const resolve = modalResolve
+    modalResolve = null
+    modalReject = null
+    if (resolve) resolve(ModalResult.ScriptDismiss)
     return
   }
 
-  const backdrop = $("body > .modal-backdrop")
-  alertModal.modal("hide")
-  await sleep(200)
-  backdrop.remove()
-  body.removeClass("modal-open").css("padding-right", "")
+  bsInstance.hide()
+  await sleep(300)
+  ensureRoot().render(createElement(Fragment, null))
   modalShowing = false
+  bsInstance = null
 
-  if (alertModal) {
-    alertModal.remove()
-  }
-
-  alertModal =
-  modalHeader =
-  modalFooter =
-  modalTitle =
-  modalBody =
-  modalClose = undefined
-
-  if (modalResolve) {
-    modalResolve(ModalResult.ScriptDismiss)
-    modalResolve = undefined
-    modalReject = undefined
-  }
+  const resolve = modalResolve
+  modalResolve = null
+  modalReject = null
+  if (resolve) resolve(ModalResult.ScriptDismiss)
 }
