@@ -79,6 +79,7 @@ export default defineConfig(({ mode }) => {
 
     build: {
       outDir: 'dist',
+      base: './',
       emptyOutDir: true,
       sourcemap: true,
       target: 'es2020',
