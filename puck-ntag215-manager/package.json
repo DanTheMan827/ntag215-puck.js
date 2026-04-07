@@ -12,16 +12,14 @@
     "@rollup/rollup-linux-x64-gnu": "4.60.1"
   },
   "devDependencies": {
-    "@rollup/plugin-inject": "^5.0.5",
-    "@types/bootstrap": "^3.4.0",
+    "@types/bootstrap": "^5.2.10",
     "@types/jquery": "^3.5.32",
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.15.17",
     "@types/pug": "^2.0.10",
     "@types/web-bluetooth": "0.0.21",
     "acorn": "^5.4.1",
-    "bootstrap": "^3.4.1",
-    "bootstrap-sass": "^3.4.3",
+    "bootstrap": "^5.3.8",
     "crc-32": "^1.2.2",
     "cssnano": "^7.0.7",
     "escodegen": "^1.8.0",

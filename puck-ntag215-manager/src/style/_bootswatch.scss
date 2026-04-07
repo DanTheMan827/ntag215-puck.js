@@ -1,448 +1,339 @@
-// Slate 3.4.1
+// Slate 5.3.8
 // Bootswatch
-// -----------------------------------------------------
+
+
+// Variables
+
+// Mixins
 
 @mixin btn-shadow($color){
-    @include gradient-vertical-three-colors(lighten($color, 6%), $color, 60%, darken($color, 4%));
-    filter: none;
+  @include gradient-y-three-colors(tint-color($color, 5%), $color, 20%, shade-color($color, 20%));
+  filter: none;
+}
+
+@mixin btn-shadow-inverse($color){
+  @include gradient-y-three-colors(shade-color($color, 16%), shade-color($color, 10%), 40%, shade-color($color, 6%));
+  filter: none;
+}
+
+@mixin btn-shadow-inverse-dark($color){
+  @include gradient-y-three-colors(shade-color($color, 36%), shade-color($color, 30%), 40%, shade-color($color, 26%));
+  filter: none;
+}
+
+// Navbar
+
+.navbar {
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, .2);
+  border: 1px solid rgba(0, 0, 0, .6);
+
+  .container {
+    padding: 0;
   }
-  
-  @mixin btn-shadow-inverse($color){
-    @include gradient-vertical-three-colors(darken($color, 24%), darken($color, 18%), 40%, darken($color, 16%));
-    filter: none;
+
+  .navbar-toggler {
+    border-color: rgba(0, 0, 0, .6);
   }
-  
-  // Navbar =====================================================================
-  
-  .navbar {
-  
-    @include btn-shadow($navbar-default-bg);
-    border: 1px solid rgba(0, 0, 0, 0.6);
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-  
-    .navbar-nav > li > a {
-      border-right: 1px solid rgba(0, 0, 0, 0.2);
-      border-left: 1px solid rgba(255, 255, 255, 0.1);
-  
-      &:hover {
-        @include btn-shadow-inverse($navbar-default-bg);
-        border-left-color: transparent;
-      }
-    }
-  
-    &-inverse {
-      @include btn-shadow($navbar-inverse-bg);
-  
-      .badge {
-        background-color: $navbar-inverse-link-active-bg;
-      }
-  
-      .navbar-nav > li > a {
-  
+
+  &-fixed-top {
+    border-width: 0 0 1px;
+  }
+
+  &-fixed-bottom {
+    border-width: 1px 0 0;
+  }
+
+  .nav-link {
+    padding: 1rem;
+    border-right: 1px solid rgba(0, 0, 0, .2);
+    border-left: 1px solid rgba(255, 255, 255, .1);
+  }
+
+  &-brand {
+    padding: .75rem 1rem subtract(24px, .75rem);
+    margin-right: 0;
+    border-right: 1px solid rgba(0, 0, 0, .2);
+  }
+
+  .nav-item.active .nav-link {
+    background-color: rgba(0, 0, 0, .3);
+    border-left: 1px solid rgba(0, 0, 0, .2);
+  }
+
+  &-nav .nav-item + .nav-item {
+    margin-left: 0;
+  }
+
+  @each $color, $value in $theme-colors {
+    &.bg-#{$color} {
+
+      .nav-link {
         &:hover {
-          @include btn-shadow-inverse($navbar-inverse-bg);
+          @include btn-shadow-inverse($value);
+          border-left: 1px solid rgba(0, 0, 0, .2);
         }
-      }
-    }
-  
-    .nav .open > a {
-      border-color: transparent;
-    }
-  
-    &-nav > li.active > a {
-      border-left-color: transparent;
-    }
-  
-    &-form {
-      margin-left: 5px;
-      margin-right: 5px;
-    }
-  }
-  
-  // Buttons ====================================================================
-  
-  .btn,
-  .btn:hover {
-    border-color: rgba(0, 0, 0, 0.6);
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-  }
-  
-  .btn-default {
-    @include btn-shadow($btn-default-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-default-bg);
-    }
-  }
-  
-  .btn-primary {
-    @include btn-shadow($btn-primary-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-primary-bg);
-    }
-  }
-  
-  .btn-success {
-    @include btn-shadow($btn-success-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-success-bg);
-    }
-  }
-  
-  .btn-info {
-    @include btn-shadow($btn-info-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-info-bg);
-    }
-  }
-  
-  .btn-warning {
-    @include btn-shadow($btn-warning-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-warning-bg);
-    }
-  }
-  
-  .btn-danger {
-    @include btn-shadow($btn-danger-bg);
-  
-    &:hover {
-      @include btn-shadow-inverse($btn-danger-bg);
-    }
-  }
-  
-  .btn-link,
-  .btn-link:hover {
-    border-color: transparent;
-  }
-  
-  // Typography =================================================================
-  
-  h1, h2, h3, h4, h5, h6 {
-    text-shadow: -1px -1px 0 rgba(0, 0, 0, 0.3);
-  }
-  
-  .text-primary,
-  .text-primary:hover {
-    color: $brand-primary;
-  }
-  
-  .text-success,
-  .text-success:hover {
-    color: $brand-success;
-  }
-  
-  .text-danger,
-  .text-danger:hover {
-    color: $brand-danger;
-  }
-  
-  .text-warning,
-  .text-warning:hover {
-    color: $brand-warning;
-  }
-  
-  .text-info,
-  .text-info:hover {
-    color: $brand-info;
-  }
-  
-  // Tables =====================================================================
-  
-  .table {
-  
-    .success,
-    .warning,
-    .danger,
-    .info {
-      color: #fff;
-    }
-  
-    &-bordered tbody {
-  
-      tr.success,
-      tr.warning,
-      tr.danger {
-  
-        td,
-        &:hover td {
-          border-color: $table-border-color;
+
+        &:active,
+        &.active {
+          @include btn-shadow-inverse-dark($value);
+          border-left: 1px solid rgba(0, 0, 0, .2);
         }
       }
     }
   }
-  
-  .table-responsive > .table {
-    background-color: $table-bg;
-  }
-  
-  // Forms ======================================================================
-  
-  input,
-  textarea {
-    color: $input-color;
-  }
-  
-  .has-warning {
-    .help-block,
-    .control-label,
-    .radio,
-    .checkbox,
-    .radio-inline,
-    .checkbox-inline,
-    &.radio label,
-    &.checkbox label,
-    &.radio-inline label,
-    &.checkbox-inline label,
-    .form-control-feedback {
-      color: $brand-warning;
-    }
-  
-    .form-control,
-    .form-control:focus {
-      border-color: $brand-warning;
-    }
-  
-    .input-group-addon {
-      background-color: $gray-dark;
-      border-color: $input-group-addon-border-color;
+}
+
+@media (max-width: 576px) {
+  .navbar-expand-sm {
+    .navbar-brand,
+    .nav-link {
+      border: none !important;
     }
   }
-  
-  .has-error {
-    .help-block,
-    .control-label,
-    .radio,
-    .checkbox,
-    .radio-inline,
-    .checkbox-inline,
-    &.radio label,
-    &.checkbox label,
-    &.radio-inline label,
-    &.checkbox-inline label,
-    .form-control-feedback {
-      color: $brand-danger;
-    }
-  
-    .form-control,
-    .form-control:focus {
-      border-color: $brand-danger;
-    }
-  
-    .input-group-addon {
-      background-color: $gray-dark;
-      border-color: $input-group-addon-border-color;
+}
+
+@media (max-width: 768px) {
+  .navbar-expand-md {
+    .navbar-brand,
+    .nav-link {
+      border: none !important;
     }
   }
-  
-  .has-success {
-    .help-block,
-    .control-label,
-    .radio,
-    .checkbox,
-    .radio-inline,
-    .checkbox-inline,
-    &.radio label,
-    &.checkbox label,
-    &.radio-inline label,
-    &.checkbox-inline label,
-    .form-control-feedback {
-      color: $brand-success;
-    }
-  
-    .form-control,
-    .form-control:focus {
-      border-color: $brand-success;
-    }
-  
-    .input-group-addon {
-      background-color: $gray-dark;
-      border-color: $input-group-addon-border-color;
+}
+
+@media (max-width: 992px) {
+  .navbar-expand-lg {
+    .navbar-brand,
+    .nav-link {
+      border: none !important;
     }
   }
-  
-  legend {
-    color: #fff;
+}
+
+// Buttons
+
+.btn {
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, .3);
+  border-color: rgba(0, 0, 0, .6);
+
+  &:not([disabled]):not(.disabled).active,
+  &.disabled {
+    border-color: rgba(0, 0, 0, .6);
+    box-shadow: none;
   }
-  
-  .input-group-addon {
-    background-color: $gray-dark;
-    @include btn-shadow($btn-default-bg);
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-    color: $btn-default-color;
+
+  &:hover,
+  &:focus,
+  &:not([disabled]):not(.disabled):active,
+  &:not([disabled]):not(.disabled):active:hover,
+  &:not([disabled]):not(.disabled).active:hover {
+    border-color: rgba(0, 0, 0, .6);
   }
-  
-  // Navs =======================================================================
-  
-  .nav {
-  
-    .open > a,
-    .open > a:hover,
-    .open > a:focus {
-      border-color: rgba(0, 0, 0, 0.6);
-    }
-  
-  }
-  
-  .nav-pills {
-  
-    & > li > a {
-      @include btn-shadow($btn-default-bg);
-      border: 1px solid rgba(0, 0, 0, 0.6);
-      text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-  
-      &:hover {
-        @include btn-shadow-inverse($btn-default-bg);
-        border: 1px solid rgba(0, 0, 0, 0.6);
+
+  @each $color, $value in $theme-colors {
+    &-#{$color} {
+      @include btn-shadow($value);
+
+      &:not([disabled]):not(.disabled):hover {
+        @include btn-shadow-inverse($value);
+      }
+
+      &:not([disabled]):not(.disabled):active:hover,
+      &:not([disabled]):not(.disabled).active:hover {
+        @include btn-shadow-inverse-dark($value);
       }
     }
-  
-    & > li.active > a,
-    & > li.active > a:hover {
-      background-color: none;
-      @include btn-shadow-inverse($btn-default-bg);
-      border: 1px solid rgba(0, 0, 0, 0.6);
+  }
+}
+
+.btn-outline {
+  &-primary {
+    color: $white;
+  }
+}
+
+.btn-link,
+.btn-link:hover {
+  border-color: transparent;
+}
+
+.btn-group,
+.btn-group-vertical {
+  .btn.active {
+    border-color: rgba(0, 0, 0, .6);
+  }
+}
+
+.btn-check:checked + .btn,
+.btn-check + .btn:hover {
+  color: $white;
+  border-color: rgba(0, 0, 0, .6);
+}
+
+// Typography
+
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
+  text-shadow: -1px -1px 0 rgba(0, 0, 0, .3);
+}
+
+// Forms
+
+legend {
+  color: $white;
+}
+
+.input-group-addon {
+  @include btn-shadow($secondary);
+  color: $white;
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, .3);
+}
+
+// Navs
+
+.nav-tabs {
+  .nav-link {
+    @include btn-shadow-inverse($gray-800);
+    border: 1px solid rgba(0, 0, 0, .6);
+
+    &:not([disabled]):not(.disabled):hover,
+    &:not([disabled]):not(.disabled):focus,
+    &:not([disabled]):not(.disabled):active,
+    &:not([disabled]):not(.disabled).active {
+      @include btn-shadow($gray-800);
     }
-  
-    & > li.disabled > a,
-    & > li.disabled > a:hover {
-      @include btn-shadow($btn-default-bg);
+
+    &.disabled {
+      border: 1px solid rgba(0, 0, 0, .6);
     }
   }
-  
-  .pagination {
-  
-    & > li > a,
-    & > li > span {
-      text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-      @include btn-shadow($btn-default-bg);
-  
-      &:hover {
-        @include btn-shadow-inverse($btn-default-bg);
-      }
-    }
-  
-    & > li.active > a,
-    & > li.active > span {
-      @include btn-shadow-inverse($btn-default-bg);
-    }
-  
-    & > li.disabled > a,
-    & > li.disabled > a:hover,
-    & > li.disabled > span,
-    & > li.disabled > span:hover {
-      background-color: transparent;
-      @include btn-shadow($btn-default-bg);
+
+  .nav-link,
+  .nav-link:hover {
+    color: $white;
+  }
+}
+
+.nav-pills {
+  .nav-link {
+    @include btn-shadow($gray-800);
+    color: $white;
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, .3);
+    border: 1px solid rgba(0, 0, 0, .6);
+
+    &:hover {
+      @include btn-shadow-inverse($gray-800);
+      border: 1px solid rgba(0, 0, 0, .6);
     }
   }
-  
-  .pager {
-  
-    & > li > a {
-      @include btn-shadow($btn-default-bg);
-      text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-  
-      &:hover {
-        @include btn-shadow-inverse($btn-default-bg);
-      }
-    }
-  
-    & > li.disabled > a,
-    & > li.disabled > a:hover {
-      background-color: transparent;
-      @include btn-shadow($btn-default-bg);
-    }
+
+  .nav-link.active,
+  .nav-link:hover {
+    background-color: transparent;
+    @include btn-shadow-inverse($gray-800);
+    border: 1px solid rgba(0, 0, 0, .6);
   }
-  
-  .breadcrumb {
-    border: 1px solid rgba(0, 0, 0, 0.6);
-    text-shadow: 1px 1px 1px rgba(0, 0, 0, 0.3);
-    @include btn-shadow($btn-default-bg);
+
+  .nav-link.disabled,
+  .nav-link.disabled:hover {
+    @include btn-shadow($gray-800);
+    color: $nav-link-disabled-color;
   }
-  
-  // Indicators =================================================================
-  
-  .alert {
-  
-    .alert-link,
-    a {
-      color: #fff;
-      text-decoration: underline;
-    }
-  
-    .close {
-      color: $close-color;
+}
+
+.pagination {
+  .page-link {
+    text-shadow: 1px 1px 1px rgba(0, 0, 0, .3);
+    @include btn-shadow($gray-800);
+
+    &:hover {
+      @include btn-shadow-inverse($gray-800);
       text-decoration: none;
     }
   }
-  
-  // Progress bars ==============================================================
-  
-  // Containers =================================================================
-  
-  a.thumbnail:hover,
-  a.thumbnail:focus,
-  a.thumbnail.active {
-    border-color: $thumbnail-border;
+
+  .page-item.active .page-link {
+    @include btn-shadow-inverse($gray-800);
   }
-  
-  a.list-group-item {
-  
-    &.active,
-    &.active:hover,
-    &.active:focus {
-      border-color: $list-group-border;
-    }
-  
-    &-success {
-      &.active {
-        background-color: $state-success-bg;
-      }
-  
-      &.active:hover,
-      &.active:focus {
-        background-color: darken($state-success-bg, 5%);
-      }
-    }
-  
-    &-warning {
-      &.active {
-        background-color: $state-warning-bg;
-      }
-      
-      &.active:hover,
-      &.active:focus {
-        background-color: darken($state-warning-bg, 5%);
-      }
-    }
-  
-    &-danger {
-      &.active {
-        background-color: $state-danger-bg;
-      }
-      
-      &.active:hover,
-      &.active:focus {
-        background-color: darken($state-danger-bg, 5%);
-      }
+
+  .page-item.disabled .page-link {
+    @include btn-shadow($gray-800);
+  }
+}
+
+.breadcrumb {
+  text-shadow: 1px 1px 1px rgba(0, 0, 0, .3);
+  background-color: transparent;
+  border: 1px solid rgba(0, 0, 0, .6);
+  @include btn-shadow($gray-800);
+
+  a,
+  a:hover {
+    color: $white;
+  }
+}
+
+// Indicators
+
+.alert {
+  color: $white;
+  border: none;
+
+  a,
+  .alert-link {
+    color: $white;
+    text-decoration: underline;
+  }
+
+  @each $color, $value in $theme-colors {
+    &-#{$color} {
+      background-color: $value;
     }
   }
-  
-  .jumbotron {
-    border: 1px solid rgba(0, 0, 0, 0.6);
-  }
-  
-  .panel-primary,
-  .panel-success,
-  .panel-danger,
-  .panel-warning,
-  .panel-info {
-  
-    .panel-heading {
-      border-color: #000;
+
+  &-light {
+    &,
+    a:not(.btn),
+    .alert-link {
+      color: $dark;
     }
   }
+}
+
+.badge {
+  &.bg-light {
+    color: $dark;
+  }
+}
+
+.tooltip {
+  --bs-tooltip-bg: var(--bs-tertiary-bg);
+  --bs-tooltip-color: var(--bs-emphasis-color);
+}
+
+// Containers
+
+.list-group {
+  &-item {
+    color: $white;
+
+    &-light {
+      color: $dark;
+    }
+  }
+
+  &-item-action:hover {
+    background-color: shade-color($gray-900, 10%);
+  }
+
+  @each $color, $value in $theme-colors {
+    &-item-#{$color} {
+      background-color: $value;
+      border-color: $list-group-border-color;
+    }
+  }
+}

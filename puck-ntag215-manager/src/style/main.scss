@@ -1,6 +1,5 @@
-$icon-font-path: "~bootstrap-sass/assets/fonts/bootstrap/" !default;
 @import "_variables.scss";
-@import "~bootstrap-sass/assets/stylesheets/_bootstrap.scss";
+@import "bootstrap/scss/bootstrap";
 @import "mixins/breakpoints";
 @import "_bootswatch.scss";
 @import "_githubCorner.scss";
