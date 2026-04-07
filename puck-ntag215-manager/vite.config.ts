@@ -11,6 +11,7 @@ export default defineConfig(({ mode }) => {
     // Vite entry HTML — the pug plugin will replace its content at
     // transformIndexHtml time before any other processing happens.
     root: '.',
+    base: './',
     publicDir: 'static_files',
 
     plugins: [
@@ -79,7 +80,6 @@ export default defineConfig(({ mode }) => {
 
     build: {
       outDir: 'dist',
-      base: './',
       emptyOutDir: true,
       sourcemap: true,
       target: 'es2020',
