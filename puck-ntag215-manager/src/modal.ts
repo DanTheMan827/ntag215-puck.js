@@ -1,5 +1,6 @@
-const template: (options?: ModalTemplateOptions) => string = require("./templates/modal.pug")
-const $ = require("jquery") as JQueryStatic
+import template from "./templates/modal.pug"
+import { sleep } from "./sleep"
+import "bootstrap"
 
 let body: JQuery<HTMLElement>
 let alertModal: JQuery<HTMLElement>
@@ -13,10 +14,6 @@ let modalReject: (reason?: any) => void | undefined
 
 let modalShowing = false
 let modalCanClose = true
-
-import { sleep } from "./sleep"
-
-require("bootstrap")
 
 export interface ModalTemplateButton {
   value: ModalResult,

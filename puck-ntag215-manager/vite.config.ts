@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import inject from '@rollup/plugin-inject'
 import { espruinoLoaderPlugin } from './src/plugins/espruino-loader'
 import { firmwareLoaderPlugin } from './src/plugins/firmware-loader'
 import { pugPlugin } from './src/plugins/pug-plugin'

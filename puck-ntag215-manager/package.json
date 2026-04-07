@@ -12,6 +12,7 @@
     "@rollup/rollup-linux-x64-gnu": "4.60.1"
   },
   "devDependencies": {
+    "@rollup/plugin-inject": "^5.0.5",
     "@types/bootstrap": "^3.4.0",
     "@types/jquery": "^3.5.32",
     "@types/jszip": "^3.4.1",

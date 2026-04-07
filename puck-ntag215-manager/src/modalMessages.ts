@@ -1,4 +1,4 @@
-const template = require("./templates/modal-messages.pug")
+import template from "./templates/modal-messages.pug"
 
 export enum ModalMessageType {
   SaveToFlash = "save-to-flash",
