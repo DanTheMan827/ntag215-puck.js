@@ -1,23 +1,31 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import { execSync } from 'child_process'
 import react from '@vitejs/plugin-react'
 import { espruinoLoaderPlugin } from './src/plugins/espruino-loader'
 import { firmwareLoaderPlugin } from './src/plugins/firmware-loader'
-import { pugPlugin } from './src/plugins/pug-plugin'
+import { markdownPlugin } from './src/plugins/markdown-plugin'
+
+function getGitCommit(): string {
+  try {
+    return execSync('git rev-parse HEAD', { encoding: 'utf8' }).trim()
+  } catch (err) {
+    console.warn('Could not determine git commit:', (err as Error).message)
+    return 'unknown'
+  }
+}
 
 export default defineConfig(({ mode }) => {
   const isProd = mode === 'production'
 
   return {
-    // Vite entry HTML — the pug plugin will replace its content at
-    // transformIndexHtml time before any other processing happens.
     root: '.',
     base: './',
     publicDir: 'static_files',
 
     plugins: [
       react(),
-      pugPlugin(path.resolve(__dirname, 'src/templates/index.pug')),
+      markdownPlugin(),
       espruinoLoaderPlugin(),
       firmwareLoaderPlugin({ download: isProd }),
     ],
@@ -25,6 +33,8 @@ export default defineConfig(({ mode }) => {
     define: {
       __DEVELOPMENT__: !isProd,
       __PRODUCTION__: isProd,
+      __BUILD_DATE__: JSON.stringify(new Date().toUTCString()),
+      __GIT_COMMIT__: JSON.stringify(getGitCommit()),
       'process.env.NODE_DEBUG': 'undefined',
     },
 

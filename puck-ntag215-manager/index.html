@@ -1,7 +1,27 @@
 <!doctype html>
-<html>
+<html lang="en">
   <head>
-    <script type="module" src="/src/index.ts"></script>
+    <title>Puck NTAG215 Management</title>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=yes" />
+    <meta name="msapplication-config" content="./browserconfig.xml" />
+    <link rel="manifest" href="./site.webmanifest" />
+    <link rel="icon" href="./favicon.ico" type="image/x-icon" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <!-- Google tag (gtag.js) -->
+    <script async src="https://www.googletagmanager.com/gtag/js?id=G-P1081WE1KQ"></script>
+    <script>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+      gtag('config', 'G-P1081WE1KQ');
+    </script>
+    <script type="module" src="/src/index.tsx"></script>
   </head>
-  <body></body>
+  <body>
+    <div id="root"></div>
+    <div class="editor--terminal">
+      <div class="editor__canvas"></div>
+    </div>
+  </body>
 </html>

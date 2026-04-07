@@ -1,8 +1,8 @@
 /**
- * Declaration for pug template imports processed by the pug Vite plugin.
- * Each .pug file (other than index.pug) compiles to a callable template function.
+ * Declaration for markdown imports processed by the markdown Vite plugin.
+ * Each .md file compiles to an HTML string.
  */
-declare module '*.pug' {
-  function template(locals?: Record<string, unknown>): string
-  export default template
+declare module '*.md' {
+  const html: string
+  export default html
 }

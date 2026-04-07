@@ -21,7 +21,6 @@
     "@types/jquery": "^3.5.32",
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.15.17",
-    "@types/pug": "^2.0.10",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@types/web-bluetooth": "0.0.21",
@@ -36,14 +35,9 @@
     "highlight.js": "^11.11.1",
     "jquery": "^3.7.1",
     "jsdom": "^29.0.1",
-    "jstransformer-escape-html": "^1.1.0",
-    "jstransformer-highlight": "^2.0.0",
-    "jstransformer-markdown-it": "^3.0.0",
     "jszip": "^3.10.1",
     "postcss-import": "^16.1.0",
     "postcss-preset-env": "^10.1.6",
-    "pug": "^3.0.3",
-    "pug-runtime": "^3.0.1",
     "sass": "^1.88.0",
     "terser": "^5.39.0",
     "typescript": "^5.8.3",
@@ -52,7 +46,9 @@
     "web-bluetooth-dfu": "^1.2.1"
   },
   "dependencies": {
+    "@types/markdown-it": "^14.1.2",
     "events": "^3.3.0",
+    "markdown-it": "^14.1.1",
     "react": "^19.2.4",
     "react-dom": "^19.2.4"
   }

@@ -1,7 +1,8 @@
 import "./style/main.scss"
 
-import { createElement, Fragment } from 'react'
+import { StrictMode, createElement, Fragment } from 'react'
 import { createRoot, type Root } from 'react-dom/client'
+import { App } from "./components/App"
 import { getBlankNtag } from "./ntag215"
 import { Puck } from "./puck"
 import { showModal, hideModal, setModal, ModalButtonTypes, ModalResult } from "./modal"
@@ -21,7 +22,11 @@ function qs<T extends HTMLElement>(selector: string): T {
   return document.querySelector<T>(selector)!
 }
 
-document.addEventListener('DOMContentLoaded', () => {
+// Mount the React app first, then wire up puck logic once the DOM is ready.
+const appRoot = createRoot(document.getElementById('root')!)
+appRoot.render(createElement(StrictMode, null, createElement(App)))
+
+document.addEventListener('app:mounted', () => {
   const mainContainer = qs('#mainContainer')
   const scriptTextArea = qs<HTMLTextAreaElement>('#code')
   const firmwareName = qs('#code').textContent!.match(/const FIRMWARE_NAME = "([^"]+)";/)![1]
