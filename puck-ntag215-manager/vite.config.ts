@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import path from 'path'
+import react from '@vitejs/plugin-react'
 import { espruinoLoaderPlugin } from './src/plugins/espruino-loader'
 import { firmwareLoaderPlugin } from './src/plugins/firmware-loader'
 import { pugPlugin } from './src/plugins/pug-plugin'
@@ -15,6 +16,7 @@ export default defineConfig(({ mode }) => {
     publicDir: 'static_files',
 
     plugins: [
+      react(),
       pugPlugin(path.resolve(__dirname, 'src/templates/index.pug')),
       espruinoLoaderPlugin(),
       firmwareLoaderPlugin({ download: isProd }),
@@ -79,6 +81,13 @@ export default defineConfig(({ mode }) => {
 
     server: {
       open: false,
+    },
+
+    test: {
+      environment: 'jsdom',
+      globals: true,
+      setupFiles: ['./src/vitest.setup.ts'],
+      include: ['src/**/*.test.{ts,tsx}'],
     },
   }
 })

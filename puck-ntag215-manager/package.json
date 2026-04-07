@@ -6,18 +6,26 @@
   "scripts": {
     "build": "vite build",
     "build-dev": "vite build --mode development",
-    "dev": "vite"
+    "dev": "vite",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "optionalDependencies": {
     "@rollup/rollup-linux-x64-gnu": "4.60.1"
   },
   "devDependencies": {
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
+    "@testing-library/user-event": "^14.6.1",
     "@types/bootstrap": "^5.2.10",
     "@types/jquery": "^3.5.32",
     "@types/jszip": "^3.4.1",
     "@types/node": "^22.15.17",
     "@types/pug": "^2.0.10",
+    "@types/react": "^19.2.14",
+    "@types/react-dom": "^19.2.3",
     "@types/web-bluetooth": "0.0.21",
+    "@vitejs/plugin-react": "^4.7.0",
     "acorn": "^5.4.1",
     "bootstrap": "^5.3.8",
     "crc-32": "^1.2.2",
@@ -27,6 +35,7 @@
     "espruino": "^0.1.45",
     "highlight.js": "^11.11.1",
     "jquery": "^3.7.1",
+    "jsdom": "^29.0.1",
     "jstransformer-escape-html": "^1.1.0",
     "jstransformer-highlight": "^2.0.0",
     "jstransformer-markdown-it": "^3.0.0",
@@ -39,9 +48,12 @@
     "terser": "^5.39.0",
     "typescript": "^5.8.3",
     "vite": "^6.3.3",
+    "vitest": "^4.1.2",
     "web-bluetooth-dfu": "^1.2.1"
   },
   "dependencies": {
-    "events": "^3.3.0"
+    "events": "^3.3.0",
+    "react": "^19.2.4",
+    "react-dom": "^19.2.4"
   }
 }
