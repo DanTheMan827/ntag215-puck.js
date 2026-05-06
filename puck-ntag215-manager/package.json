@@ -34,7 +34,7 @@
     "css-minimizer-webpack-plugin": "^7.0.2",
     "cssnano": "^7.0.7",
     "del-cli": "^6.0.0",
-    "escodegen": "^1.8.0",
+    "escodegen": "^2.1.0",
     "esmangle": "^1.0.1",
     "espruino": "^0.1.45",
     "espruino-loader": "^1.2.3",
